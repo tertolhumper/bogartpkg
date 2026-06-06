@@ -1,0 +1,27 @@
+#!/bin/bash
+# bpkg-info — fetch latest version and download URL
+# Usage: bpkg-info <cpan|github|pwmt|go> <module/repo>
+
+[[ $EUID -ne 0 ]] && { echo "Run as root."; exit 1; }
+[[ -z "$1" ]] && { echo "Usage: bpkg-info <cpan|github|pwmt|go> <module/repo>"; exit 1; }
+
+SOURCE="$1"
+TARGET="$2"
+
+case "$SOURCE" in
+    cpan)
+        curl -s "https://fastapi.metacpan.org/v1/release/${TARGET}" | grep -i "download_url\|author\|version"
+        ;;
+    github)
+        curl -s "https://api.github.com/repos/${TARGET}/releases/latest" | grep -E "tag_name|browser_download_url"
+        ;;
+    pwmt)
+        curl -s "https://pwmt.org/projects/${TARGET}/download/" | grep -oP "${TARGET}-[\d.]+\.tar\.[xg]z" | sort -V | tail -5
+        ;;
+    go)
+        curl -s "https://api.github.com/repos/golang/go/git/refs/tags" | grep -oP '"ref"\s*:\s*"refs/tags/\Kgo[\d.]+' | sort -V | tail -5
+        ;;
+    *)
+        echo "Unknown source: $SOURCE. Use cpan, github, pwmt, or go."
+        ;;
+esac

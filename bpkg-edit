@@ -1,0 +1,66 @@
+#!/bin/bash
+# bpkg-edit — conf helper with version/URL lookup
+# Usage: bpkg-edit <pkg-name> [cpan|github|pwmt] [module/repo]
+
+[[ $EUID -ne 0 ]] && { echo "Run as root."; exit 1; }
+[[ -z "$1" ]] && { echo "Usage: bpkg-edit <pkg-name> [cpan|github|pwmt] [module/repo]"; exit 1; }
+
+PKG="$1"
+SOURCE="$2"
+TARGET="$3"
+CONF="/etc/bogartpkg/packages.d/${PKG}.conf"
+
+fetch_cpan() {
+    local mod="$1"
+    local data=$(curl -s "https://fastapi.metacpan.org/v1/release/${mod}")
+    AUTHOR=$(echo "$data" | grep -oP '"author"\s*:\s*"\K[^"]+' | head -1)
+    VERSION=$(echo "$data" | grep -oP '"version"\s*:\s*"?\K[0-9][^",]+' | tail -1)
+    URL=$(echo "$data" | grep -oP '"download_url"\s*:\s*"\K[^"]+')
+    echo "  Author  : ${AUTHOR}"
+    echo "  Version : ${VERSION}"
+    echo "  URL     : ${URL}"
+}
+
+fetch_github() {
+    local repo="$1"
+    local data=$(curl -s "https://api.github.com/repos/${repo}/releases/latest")
+    VERSION=$(echo "$data" | grep -oP '"tag_name"\s*:\s*"\K[^"]+')
+    URL=$(echo "$data" | grep -oP '"browser_download_url"\s*:\s*"\K[^"]+' | head -1)
+    echo "  Version : ${VERSION}"
+    echo "  URL     : ${URL}"
+}
+
+fetch_pwmt() {
+    local proj="$1"
+    local url="https://pwmt.org/projects/${proj}/download/"
+    local latest=$(curl -s "$url" | grep -oP "${proj}-[\d.]+\.tar\.[xg]z" | sort -V | tail -1)
+    echo "  Latest  : ${latest}"
+    echo "  URL     : ${url}${latest}"
+}
+
+if [[ -n "$SOURCE" && -n "$TARGET" ]]; then
+    echo "━━━ Fetching ${SOURCE} info for ${TARGET} ━━━"
+    case "$SOURCE" in
+        cpan)   fetch_cpan   "$TARGET" ;;
+        github) fetch_github "$TARGET" ;;
+        pwmt)   fetch_pwmt   "$TARGET" ;;
+        *)      echo "Unknown source: $SOURCE" ;;
+    esac
+    echo ""
+fi
+
+if [[ -f "$CONF" ]]; then
+    echo "━━━ Editing existing conf: $CONF ━━━"
+else
+    echo "━━━ Creating new conf: $CONF ━━━"
+    cat > "$CONF" << TEMPLATE
+PKG_NAME="${PKG}"
+PKG_VER=""
+PKG_URL1=""
+PKG_TARBALL=""
+PKG_BUILD_TYPE="meson"
+PKG_MESON_OPTS=""
+TEMPLATE
+fi
+
+nano "$CONF"

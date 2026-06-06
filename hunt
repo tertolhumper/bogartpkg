@@ -1,0 +1,130 @@
+#!/bin/bash
+CACHE="/var/cache/rebuild-deps-cache.txt"
+
+declare -A KNOWN_STATIC=(
+    ["lua"]="ironbar mpv swayimg libinput luajit"
+    ["hyprland"]="hyprland-guiutils xdg-desktop-portal-hyprland"
+)
+
+declare -A LIBMAP=(
+    ["linux-pam"]="libpam"
+    ["audit-userspace"]="libaudit"
+    ["fuse"]="libfuse3"
+    ["libsoup"]="libsoup-3"
+    ["libostree"]="libostree-1"
+    ["gdk-pixbuf"]="libgdk_pixbuf"
+    ["glib"]="libglib-2|libgio-2|libgobject-2|libgmodule-2|libgthread-2|libgirepository-2"
+    ["gtk"]="libgtk-3"
+    ["gtk4"]="libgtk-4"
+    ["vulkan-loader"]="libvulkan"
+    ["libva"]="libva"
+    ["pulseaudio"]="libpulse"
+    ["glibc"]="libc.so"
+    ["gcc"]="libstdc++"
+    ["binutils"]="libbfd"
+    ["sdbus-cpp"]="libsdbus-c++"
+    ["libjpeg-turbo"]="libjpeg"
+    ["gobject-introspection"]="libgirepository-1.0"
+    ["at-spi2-core"]="libatk-bridge-2.0"
+    ["openjpeg"]="libopenjp2"
+    ["gst-plugins-base"]="libgstreamer-1.0"
+    ["alsa-lib"]="libasound"
+    ["glib-networking"]="libgio-2.0"
+    ["bzip2"]="libbz2"
+    ["xz"]="liblzma"
+    ["qt5"]="libQt5"
+    ["xcb-util-wm"]="libxcb-ewmh"
+    ["xcb-util-errors"]="libxcb-errors"
+    ["graphite2"]="libgraphite2"
+    ["seatd"]="libseat"
+    ["spirv-tools"]="libSPIRV-Tools"
+    ["llvm"]="libLLVM.so"
+    ["egl-gbm"]="libnvidia-egl-gbm"
+    ["elfutils"]="libelf"
+    ["jansson"]="libjansson"
+    ["libapparmor"]="libapparmor"
+    ["zlib"]="libz"
+    ["openssl"]="libcrypto"
+    ["util-linux"]="libblkid"
+    ["e2fsprogs"]="libcom_err"
+    ["shadow"]="libsubid"
+    ["x265"]="libx265"
+    ["highway"]="libhwy"
+    ["bubblewrap"]="libbubble"
+    ["wayland-protocols"]="libwayland"
+    ["vulkan-headers"]="libvulkan"
+    ["spirv-headers"]="libSPIRV"
+    ["gtk3"]="libgtk-3"
+    ["ffmpeg"]="libavcodec"
+    ["libliftoff"]="libliftoff"
+    ["go"]="libgo-NOMATCH"
+    ["mesa"]="libdril_dri.so|dri_gbm.so|libEGL_mesa.so.0|libGLX_mesa.so.0|libgallium|libgbm.so.1")
+
+if [[ "$1" == "--help" ]]; then
+    echo "Usage: hunt [--help] [<pkgname>]"
+    echo ""
+    echo "  (no args)      Interactive REPL — prompts for package name, loops until empty input"
+    echo "  <pkgname>      Non-interactive — search directly and exit"
+    echo "  --help         Show this help"
+    echo "  enter          To exit"
+    exit 0
+fi
+
+do_search() {
+    local TARGET_PKG="$1"
+    [ -z "$TARGET_PKG" ] && return
+    local TARGET_LIB="${LIBMAP[$TARGET_PKG]:-$TARGET_PKG}"
+    TARGET_LIB="${TARGET_LIB// /|}"
+    [ "$TARGET_LIB" != "$TARGET_PKG" ] && echo "Alias: $TARGET_PKG → $TARGET_LIB"
+    local MATCH_COUNT=0
+    if [ -f "$CACHE" ]; then
+        echo "Searching cache for direct dependents of $TARGET_LIB..."
+        echo "----------------------------------------------------"
+        while read -r pkg; do
+            echo "[MATCH FOUND] Package: $pkg"
+            echo "----------------------------------------------------"
+            ((MATCH_COUNT++))
+        done < <(grep -iE "$TARGET_LIB" "$CACHE" | awk '{print $1}' | grep -v "^${TARGET_PKG}$" | sort -u)
+        echo "Search complete. Total packages directly dependent on $TARGET_LIB: $MATCH_COUNT"
+    else
+        echo "No cache found. Falling back to live scan..."
+        echo "----------------------------------------------------"
+        for pkg in $(porg -a | sed 's/-[0-9].*//'); do
+            files=$(porg -f "$pkg" 2>/dev/null | grep -E '\.(so|so\.[0-9])|/bin/|/sbin/' | grep -v '/sources/' | grep -v '\.a$')
+            for f in $files; do
+                [ -L "$f" ] && continue
+                [ -f "$f" ] || continue
+                if readelf -d "$f" 2>/dev/null | grep -qi "NEEDED.*$TARGET_LIB"; then
+                    FILE_TYPE=$(file -b "$f" | cut -d',' -f1)
+                    echo "[MATCH FOUND] Package: $pkg"
+                    echo "              Type:    $FILE_TYPE"
+                    echo "              File:    $f"
+                    echo "----------------------------------------------------"
+                    ((MATCH_COUNT++))
+                    break
+                fi
+            done
+        done
+        echo "Search complete. Total packages directly dependent on $TARGET_LIB: $MATCH_COUNT"
+    fi
+    if [[ -n "${KNOWN_STATIC[$TARGET_PKG]}" && "$MATCH_COUNT" -eq 0 ]]; then
+        echo "Static dependents (rebuild manually on update):"
+        for s in ${KNOWN_STATIC[$TARGET_PKG]}; do echo "  [STATIC] Package: $s"; done
+        echo "----------------------------------------------------"
+    fi
+    echo ""
+}
+
+# Non-interactive mode
+if [[ -n "$1" ]]; then
+    do_search "$1"
+    exit 0
+fi
+
+# Interactive REPL mode
+while true; do
+    echo "Enter the package name to search for (e.g., boost, linux-pam, glibc):"
+    read -r TARGET_PKG
+    [ -z "$TARGET_PKG" ] && echo "Exiting." && exit 0
+    do_search "$TARGET_PKG"
+done

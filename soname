@@ -1,0 +1,6 @@
+#!/bin/bash
+[ -z "$1" ] && { echo "Usage: soname <package>"; exit 1; }
+find /usr/lib /usr/lib64 /usr/local/lib -name "${1}*.so*" ! -type l 2>/dev/null | while read f; do
+    sn=$(readelf -d "$f" 2>/dev/null | awk '/SONAME/{gsub(/[\[\]]/,"",$NF); print $NF}')
+    [ -n "$sn" ] && echo "$f → $sn"
+done

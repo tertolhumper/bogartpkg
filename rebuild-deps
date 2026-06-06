@@ -1,0 +1,231 @@
+#!/bin/bash
+# rebuild-deps — fast dependency map builder for deps.conf
+# Uses readelf -d (direct deps only) with an inverted cache approach.
+# One scan pass builds the cache, then each lib is just a grep.
+# Cache persists at /var/cache/rebuild-deps-cache.txt (survives reboots)
+#
+# Usage: rebuild-deps
+# Output: /usr/local/etc/deps.conf.verified
+
+CACHE="/var/cache/rebuild-deps-cache.txt"
+OUTPUT="/usr/local/etc/deps.conf.verified"
+DEPS_CONF="/usr/local/etc/deps.conf"
+
+if [[ "$1" == "--help" ]]; then
+    echo "Usage: rebuild-deps [--help] [--rescan <pkgname>]"
+    echo ""
+    echo "  (no args)          Full cache rebuild + deps.conf.verified generation"
+    echo "  --rescan <pkg>     Refresh cache entries for a single package only"
+    echo "  --help             Show this help"
+    exit 0
+fi
+
+if [[ "$1" == "--rescan" ]]; then
+    if [[ -z "$2" ]]; then
+        echo "Usage: rebuild-deps --rescan <pkgname>"
+        exit 1
+    fi
+    PKG="$2"
+    echo "Rescanning $PKG..."
+    # Remove stale entries
+    sed -i "/^${PKG} /d" "$CACHE"
+    # Rescan via porg
+    files=$(porg -f "$PKG" 2>/dev/null \
+        | grep -E '\.(so|so\.[0-9])|/bin/|/sbin/|/lib/' \
+        | grep -v '/sources/' \
+        | grep -v '\.a$')
+    for f in $files; do
+        [ -L "$f" ] && continue
+        [ -f "$f" ] || continue
+        readelf -d "$f" 2>/dev/null \
+            | grep 'NEEDED' \
+            | grep -oP '\[\K[^\]]+' \
+            | while read -r soname; do
+                echo "$PKG $soname"
+            done
+    done >> "$CACHE"
+    echo "Done. Cache updated for $PKG:"
+    grep "^${PKG} " "$CACHE"
+    exit 0
+fi
+
+# Package name → actual .so fragment to search in cache
+declare -A LIBMAP=(
+    # Standard mismatches
+    ["linux-pam"]="libpam"
+    ["audit-userspace"]="libaudit"
+    ["fuse"]="libfuse3"
+    ["libsoup"]="libsoup-3"
+    ["libostree"]="libostree-1"
+    ["gdk-pixbuf"]="libgdk_pixbuf"
+    ["glib"]="libglib-2"
+    ["gtk"]="libgtk-3"
+    ["gtk3"]="libgtk-3"
+    ["gtk4"]="libgtk-4"
+    ["vulkan-loader"]="libvulkan"
+    ["libva"]="libva"
+    ["pulseaudio"]="libpulse"
+    ["glibc"]="libc.so"
+    ["gcc"]="libstdc++"
+    ["binutils"]="libbfd"
+    ["sdbus-cpp"]="libsdbus-c++"
+    ["libjpeg-turbo"]="libjpeg"
+    ["gobject-introspection"]="libgirepository-1.0"
+    ["at-spi2-core"]="libatk-bridge-2.0"
+    ["openjpeg"]="libopenjp2"
+    ["gst-plugins-base"]="libgstreamer-1.0"
+    ["alsa-lib"]="libasound"
+    ["glib-networking"]="libgio-2.0"
+    ["bzip2"]="libbz2"
+    ["xz"]="liblzma"
+    ["qt5"]="libQt5"
+    ["xcb-util-wm"]="libxcb-ewmh"
+    ["xcb-util-errors"]="libxcb-errors"
+    ["graphite2"]="libgraphite2"
+    ["seatd"]="libseat"
+    ["spirv-tools"]="libSPIRV-Tools"
+    ["llvm"]="libLLVM.so"
+    ["egl-gbm"]="libnvidia-egl-gbm"
+    ["elfutils"]="libelf"
+    ["jansson"]="libjansson"
+    ["libapparmor"]="libapparmor"
+    ["zlib"]="libz"
+    ["openssl"]="libcrypto"
+    ["util-linux"]="libblkid"
+    ["e2fsprogs"]="libcom_err"
+    ["shadow"]="libsubid"
+    ["x265"]="libx265"
+    ["highway"]="libhwy"
+    ["bubblewrap"]="libbubble"
+    ["wayland-protocols"]="libwayland"
+    ["vulkan-headers"]="libvulkan"
+    ["spirv-headers"]="libSPIRV"
+    ["ffmpeg"]="libavcodec"
+    ["libliftoff"]="libliftoff"
+    ["glslang"]="libglslang"
+    ["go"]="libgo-NOMATCH"
+)
+
+# Verified empty — have .so but nothing links them dynamically
+# These are correct and should not show alias warnings
+declare -a KNOWN_EMPTY=(
+    graphite2
+    gobject-introspection
+    egl-gbm
+    jansson
+    shadow
+    qt5
+    bubblewrap
+    libapparmor
+    x265
+    llvm
+)
+
+# Static/header-only — no .so exists, cascade must be maintained manually
+# rebuild-deps cannot detect these — keep in deps.conf by hand
+declare -a STATIC_ONLY=(
+    spirv-headers
+    spirv-tools
+    vulkan-headers
+    highway
+)
+
+
+rm -f "$CACHE"
+if true; then
+    rm -f "$CACHE"
+    echo "Building binary dependency cache (one-time scan)..."
+    echo "This may take 2-3 minutes..."
+    echo ""
+
+    > "$CACHE"
+    TOTAL=$(porg -a | wc -l)
+    COUNT=0
+
+    for pkg in $(porg -a | sed 's/-[0-9].*//'); do
+        ((COUNT++))
+        printf "\r  Scanning %d/%d: %-30s" "$COUNT" "$TOTAL" "$pkg" >&2
+
+        files=$(porg -f "$pkg" 2>/dev/null \
+            | grep -E '\.(so|so\.[0-9])|/bin/|/sbin/|/lib/' \
+            | grep -v '/sources/' \
+            | grep -v '\.a$')
+
+        for f in $files; do
+            [ -L "$f" ] && continue
+            [ -f "$f" ] || continue
+            readelf -d "$f" 2>/dev/null \
+                | grep 'NEEDED' \
+                | grep -oP '\[\K[^\]]+' \
+                | while read -r soname; do
+                    echo "$pkg $soname"
+                done
+        done
+    done >> "$CACHE"
+
+    echo ""
+    echo "Cache built: $CACHE ($(wc -l < "$CACHE") entries)"
+    echo ""
+fi
+
+# ── Step 2: Query cache for each lib in deps.conf ───────────────────
+echo "Generating verified deps.conf..."
+echo ""
+
+{
+    echo "# Bogart Linux - Verified Dependency Map"
+    echo "# Generated: $(date '+%Y-%m-%d')"
+    echo "# Method: readelf -d (direct deps only, no transitive pollution)"
+    echo "#"
+    echo "# NOTE: glibc/gcc/binutils entries will be large — expected."
+    echo "# These are complete rebuild lists for toolchain upgrades."
+    echo "# Never rush a toolchain upgrade — rebuild in listed order."
+    echo "#"
+    echo "# STATIC/HEADER-ONLY entries must be maintained manually:"
+    echo "# spirv-headers, spirv-tools, vulkan-headers, highway"
+    echo "# These link statically — rebuild-deps cannot detect their cascades."
+    echo ""
+
+    LIBS=$(grep -E '^[a-z]' "$DEPS_CONF" \
+        | grep -v '__WARN_TOOLCHAIN__' \
+        | grep -v '__REBUILD_ALL__' \
+        | cut -d: -f1 \
+        | tr -d ' ')
+
+    for lib in $LIBS; do
+        search="${LIBMAP[$lib]:-$lib}"
+
+        matches=$(grep -i "$search" "$CACHE" \
+            | awk '{print $1}' \
+            | grep -v "^${lib}$" \
+            | sort -u \
+            | tr '\n' ' ' \
+            | sed 's/ $//')
+
+        if [ -n "$matches" ]; then
+            printf "%-24s %s\n" "${lib}:" "$matches"
+            echo "  [OK] $lib → $(echo $matches | wc -w) dependents" >&2
+
+        elif printf '%s\n' "${STATIC_ONLY[@]}" | grep -qx "$lib"; then
+            echo "# $lib: (static/header-only — maintain cascade manually)"
+            echo "  [ST] $lib: static/header-only" >&2
+
+        elif printf '%s\n' "${KNOWN_EMPTY[@]}" | grep -qx "$lib"; then
+            echo "# $lib: (verified empty — no runtime dependents)"
+            echo "  [VE] $lib: verified empty" >&2
+
+        else
+            echo "# $lib: (no direct dependents found — verify LIBMAP alias)"
+            echo "  [--] $lib: check LIBMAP alias" >&2
+        fi
+    done
+
+} > "$OUTPUT"
+
+echo ""
+echo "Done. Output: $OUTPUT"
+echo ""
+echo "Review carefully before replacing /usr/local/etc/deps.conf"
+echo "[ST] = static/header-only, maintain manually in deps.conf"
+echo "[VE] = verified empty, no runtime dependents"
+echo "[--] = unknown, check LIBMAP alias"
