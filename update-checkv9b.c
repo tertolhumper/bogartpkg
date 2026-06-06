@@ -313,13 +313,13 @@ void split_porg(const char *entry, char *name, char *ver, size_t len) {
     const char *us = strchr(entry, '_');
     if (us && isdigit(*(us + 1))) {
         size_t nl = us - entry; if (nl >= len) nl = len - 1;
-        strncpy(name, entry, nl); name[nl] = '\0';
-        strncpy(ver, us + 1, len - 1); return;
+        snprintf(name, MAX_LEN, "%.*s", (int)(nl), entry); name[nl] = '\0';
+        snprintf(ver, MAX_LEN, "%.*s", (int)(len - 1), us + 1); return;
     }
     int has_digit = 0;
     for (const char *p = entry; *p; p++)
         if (isdigit((unsigned char)*p)) { has_digit = 1; break; }
-    if (!has_digit) { strncpy(name, entry, len - 1); return; }
+    if (!has_digit) { snprintf(name, MAX_LEN, "%.*s", (int)(len - 1), entry); return; }
     const char *candidates[64]; int nc = 0;
     for (const char *p = entry; *p; p++) {
         if (*p == '-') {
@@ -335,9 +335,9 @@ void split_porg(const char *entry, char *name, char *ver, size_t len) {
         while (*p && !isdigit((unsigned char)*p)) p++;
         if (*p && p != entry) {
             size_t nl = p - entry; if (nl >= len) nl = len - 1;
-            strncpy(name, entry, nl); name[nl] = '\0';
-            strncpy(ver, p, len - 1);
-        } else strncpy(name, entry, len - 1);
+            snprintf(name, MAX_LEN, "%.*s", (int)(nl), entry); name[nl] = '\0';
+            snprintf(ver, MAX_LEN, "%.*s", (int)(len - 1), p);
+        } else snprintf(name, MAX_LEN, "%.*s", (int)(len - 1), entry);
         return;
     }
     const char *best = NULL;
@@ -347,10 +347,10 @@ void split_porg(const char *entry, char *name, char *ver, size_t len) {
     }
     if (!best) best = candidates[nc - 1];
     size_t nl = best - entry; if (nl >= len) nl = len - 1;
-    strncpy(name, entry, nl); name[nl] = '\0';
+    snprintf(name, MAX_LEN, "%.*s", (int)(nl), entry); name[nl] = '\0';
     const char *vs = best + 1;
     if ((*vs == 'v' || *vs == 'r') && isdigit((unsigned char)*(vs + 1))) vs++;
-    strncpy(ver, vs, len - 1);
+    snprintf(ver, MAX_LEN, "%.*s", (int)(len - 1), vs);
     char *dash = strrchr(ver, '-');
     if (dash && *(dash + 1)) {
         int all_dig = 1;
@@ -360,7 +360,7 @@ void split_porg(const char *entry, char *name, char *ver, size_t len) {
         else {
             char first[MAX_LEN]; size_t fl = dash - ver;
             if (fl < MAX_LEN) {
-                strncpy(first, ver, fl); first[fl] = '\0';
+                snprintf(first, MAX_LEN, "%.*s", (int)(fl), ver); first[fl] = '\0';
                 if (!strcmp(first, dash + 1)) *dash = '\0';
             }
         }
@@ -369,9 +369,9 @@ void split_porg(const char *entry, char *name, char *ver, size_t len) {
 void parse_ver(const char *json, char *out, size_t outlen) {
     out[0] = '\0';
     const char *results = strstr(json, "\"results\"");
-    if (!results) { strncpy(out, "NOT_FOUND", outlen); return; }
+    if (!results) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
     const char *arr = strchr(results, '[');
-    if (!arr) { strncpy(out, "NOT_FOUND", outlen); return; }
+    if (!arr) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
     char best_ver[MAX_LEN] = ""; int found_x86 = 0;
     const char *p = arr + 1;
     while (*p && *p != ']') {
@@ -384,25 +384,25 @@ void parse_ver(const char *json, char *out, size_t outlen) {
         }
         char obj[8192]; size_t ol = oe - p;
         if (ol >= sizeof(obj)) ol = sizeof(obj) - 1;
-        strncpy(obj, p, ol); obj[ol] = '\0';
+        snprintf(obj, MAX_LEN, "%.*s", (int)(ol), p); obj[ol] = '\0';
         char ver[MAX_LEN] = "", arc[MAX_LEN] = "";
         const char *vt = strstr(obj, "\"pkgver\"");
         if (vt) { vt = strchr(vt, ':'); if (vt) { vt = strchr(vt, '"'); if (vt) { vt++;
             const char *ve = strchr(vt, '"');
             if (ve) { size_t l = ve - vt; if (l >= MAX_LEN) l = MAX_LEN - 1;
-                strncpy(ver, vt, l); ver[l] = '\0'; }}}}
+                snprintf(ver, MAX_LEN, "%.*s", (int)(l), vt); ver[l] = '\0'; }}}}
         const char *at = strstr(obj, "\"arch\"");
         if (at) { at = strchr(at, ':'); if (at) { at = strchr(at, '"'); if (at) { at++;
             const char *ae = strchr(at, '"');
             if (ae) { size_t l = ae - at; if (l >= MAX_LEN) l = MAX_LEN - 1;
-                strncpy(arc, at, l); arc[l] = '\0'; }}}}
+                snprintf(arc, MAX_LEN, "%.*s", (int)(l), at); arc[l] = '\0'; }}}}
         if (ver[0]) {
-            if (!strcmp(arc, "x86_64")) { strncpy(best_ver, ver, MAX_LEN - 1); found_x86 = 1; break; }
-            else if (!found_x86 && !best_ver[0]) strncpy(best_ver, ver, MAX_LEN - 1);
+            if (!strcmp(arc, "x86_64")) { snprintf(best_ver, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), ver); found_x86 = 1; break; }
+            else if (!found_x86 && !best_ver[0]) snprintf(best_ver, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), ver);
         }
         p = oe;
     }
-    strncpy(out, best_ver[0] ? best_ver : "NOT_FOUND", outlen);
+    snprintf(out, MAX_LEN, "%.*s", (int)(outlen), best_ver[0] ? best_ver : "NOT_FOUND");
 }
 /* parse_gh_ver: /releases/latest → object, skips prerelease */
 void parse_gh_ver(const char *json, char *out, size_t outlen) {
@@ -414,23 +414,23 @@ void parse_gh_ver(const char *json, char *out, size_t outlen) {
         if (colon) {
             while (*colon == ':' || *colon == ' ') colon++;
             if (strncmp(colon, "true", 4) == 0) {
-                strncpy(out, "NOT_FOUND", outlen);
+                snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND");
                 return;
             }
         }
     }
     const char *t = strstr(json, "\"tag_name\"");
-    if (!t) { strncpy(out, "NOT_FOUND", outlen); return; }
+    if (!t) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
     t = strchr(t, ':');
-    if (!t) { strncpy(out, "NOT_FOUND", outlen); return; }
+    if (!t) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
     t = strchr(t, '"');
-    if (!t) { strncpy(out, "NOT_FOUND", outlen); return; }
+    if (!t) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
     t++;
     const char *e = strchr(t, '"');
-    if (!e) { strncpy(out, "NOT_FOUND", outlen); return; }
+    if (!e) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
     size_t l = e - t;
     if (l >= outlen) l = outlen - 1;
-    strncpy(out, t, l);
+    snprintf(out, MAX_LEN, "%.*s", (int)(l), t);
     out[l] = '\0';
     if (out[0] == 'v') memmove(out, out + 1, strlen(out));
 }
@@ -438,7 +438,7 @@ void parse_gh_ver(const char *json, char *out, size_t outlen) {
 void parse_gh_tag_ver(const char *json, char *out, size_t outlen, const char *prefix) {
     out[0] = '\0';
     const char *arr = strchr(json, '[');
-    if (!arr) { strncpy(out, "NOT_FOUND", outlen); return; }
+    if (!arr) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
     const char *p = arr + 1;
     while (*p && *p != ']') {
         const char *t = strstr(p, "\"name\"");
@@ -453,17 +453,17 @@ void parse_gh_tag_ver(const char *json, char *out, size_t outlen, const char *pr
         size_t l = e - t;
         if (l >= outlen) l = outlen - 1;
         char candidate[MAX_LEN];
-        strncpy(candidate, t, l);
+        snprintf(candidate, MAX_LEN, "%.*s", (int)(l), t);
         candidate[l] = '\0';
         /* apply prefix filter */
         if (!prefix || strncmp(candidate, prefix, strlen(prefix)) == 0) {
-            strncpy(out, candidate, outlen - 1);
+            snprintf(out, MAX_LEN, "%.*s", (int)(outlen - 1), candidate);
             if (out[0] == 'v') memmove(out, out + 1, strlen(out));
             return;
         }
         p = e + 1;
     }
-    strncpy(out, "NOT_FOUND", outlen);
+    snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND");
 }
 int ver_cmp(const char *a, const char *b);
 /* parse_gh_reftag_ver: /git/refs/tags → full ref list, prefix filter, version-sorted */
@@ -481,7 +481,7 @@ void parse_gh_reftag_ver(const char *json, char *out, size_t outlen, const char 
         size_t l = e - t;
         if (l >= MAX_LEN) { p = e + 1; continue; }
         char candidate[MAX_LEN];
-        strncpy(candidate, t, l);
+        snprintf(candidate, MAX_LEN, "%.*s", (int)(l), t);
         candidate[l] = '\0';
         /* apply prefix filter */
         if (!prefix || strncmp(candidate, prefix, strlen(prefix)) == 0) {
@@ -491,21 +491,21 @@ void parse_gh_reftag_ver(const char *json, char *out, size_t outlen, const char 
             /* only keep if numeric version part is valid */
             if (cv[0] && isdigit((unsigned char)cv[0])) {
                 if (!best[0] || ver_cmp(cv, bv) > 0)
-                    strncpy(best, candidate, MAX_LEN - 1);
+                    snprintf(best, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), candidate);
             }
         }
         p = e + 1;
     }
     if (best[0]) {
-        strncpy(out, best, outlen - 1);
+        snprintf(out, MAX_LEN, "%.*s", (int)(outlen - 1), best);
         out[outlen - 1] = '\0';
     } else {
-        strncpy(out, "NOT_FOUND", outlen);
+        snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND");
     }
 }
 
 void ver_clean(const char *in, char *out, size_t n) {
-    strncpy(out, in, n - 1); out[n - 1] = '\0';
+    snprintf(out, MAX_LEN, "%.*s", (int)(n - 1), in); out[n - 1] = '\0';
     /* Handle Release_X_Y_Z format (doxygen) */
     if (strncmp(out, "Release_", 8) == 0) {
         memmove(out, out + 8, strlen(out) - 7);
@@ -537,7 +537,7 @@ int ver_cmp(const char *a, const char *b) {
     char ac[MAX_LEN], bc[MAX_LEN];
     ver_clean(a, ac, sizeof(ac)); ver_clean(b, bc, sizeof(bc));
     char av[MAX_LEN], bv[MAX_LEN];
-    strncpy(av, ac, MAX_LEN); strncpy(bv, bc, MAX_LEN);
+    snprintf(av, MAX_LEN, "%.*s", (int)(MAX_LEN), ac); snprintf(bv, MAX_LEN, "%.*s", (int)(MAX_LEN), bc);
     char *ap = av, *bp = bv;
     while (*ap || *bp) {
         char *ad = strchr(ap, '.'), *bd = strchr(bp, '.');
@@ -585,10 +585,10 @@ int main(void) {
         if (!name[0] || strlen(name) < 2) continue;
         if (pkg_exists(pkgs, np, name)) continue;
         Category cat = get_category(name);
-        strncpy(pkgs[np].porg, line, MAX_LEN - 1);
-        strncpy(pkgs[np].name, name, MAX_LEN - 1);
-        strncpy(pkgs[np].inst, ver, MAX_LEN - 1);
-        strncpy(pkgs[np].arch, arch_name(name), MAX_LEN - 1);
+        snprintf(pkgs[np].porg, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), line);
+        snprintf(pkgs[np].name, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), name);
+        snprintf(pkgs[np].inst, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), ver);
+        snprintf(pkgs[np].arch, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), arch_name(name));
         pkgs[np].got[0]        = '\0';
         pkgs[np].tag_prefix[0] = '\0';
         pkgs[np].buf.data      = calloc(1, 1);
@@ -619,10 +619,10 @@ int main(void) {
                 pkgs[np].status   = ST_NOTFOUND;
                 pkgs[np].src_type = bs->src;
                 if (bs->prefix)
-                    strncpy(pkgs[np].tag_prefix, bs->prefix, sizeof(pkgs[np].tag_prefix) - 1);
+                    snprintf(pkgs[np].tag_prefix, sizeof(pkgs[np].tag_prefix), "%s", bs->prefix);
                 if (bs->src == SRC_ARCH) {
                     const char *apkg = bs->repo ? bs->repo : name;
-                    strncpy(pkgs[np].arch, apkg, MAX_LEN - 1);
+                    snprintf(pkgs[np].arch, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), apkg);
                     snprintf(pkgs[np].url, sizeof(pkgs[np].url),
                         "https://archlinux.org/packages/search/json/?name=%s", apkg);
                 } else if (bs->src == SRC_GITHUB) {
@@ -790,7 +790,7 @@ int main(void) {
         if (pkgs[i].got[0] && strcmp(pkgs[i].got, "NOT_FOUND")) {
             char cleaned[MAX_LEN];
             ver_clean(pkgs[i].got, cleaned, MAX_LEN);
-            strncpy(pkgs[i].got, cleaned, MAX_LEN - 1);
+            snprintf(pkgs[i].got, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), cleaned);
         }
     }
     /*  Display sections  */
@@ -808,13 +808,13 @@ int main(void) {
         any = 1;
     }
     printf("\n" CYAN BOLD "Package(s) not found Arch Repo API (Needs ARCHMAP/SKIP)\n" NC);
-    int any2 = 0;
+    int any1 = 0;
     for (int i = 0; i < np; i++) {
         if (pkgs[i].status != ST_NOTFOUND || pkgs[i].cat != CAT_TRACK) continue;
         printf(YELLOW "~" NC " %-20s (queried: %s)\n", pkgs[i].name, pkgs[i].arch);
-        any2 = 1;
+        any = 1;
     }
-    if (!any2) printf(GREEN"None\n" NC);
+    if (!any1) printf(GREEN"None\n" NC);
     printf("\n" CYAN BOLD "HYPRLAND ECOSYSTEM (GitHub)\n" NC);
     for (int i = 0; i < np; i++) {
         if (pkgs[i].cat != CAT_HYPRLAND) continue;
@@ -847,7 +847,7 @@ int main(void) {
             pkgs[i].src_type == SRC_GITLAB    ? "gitlab" : "skip";
         if (pkgs[i].status == ST_SKIP) {
             printf("  " DIM "~  %-33s (skipped)\n" NC, pkgs[i].name);
-            continue;
+          continue;
         }
         if (pkgs[i].status == ST_NOTFOUND) {
             printf("  " YELLOW "?  %-33s installed: %-15s %s: NOT_FOUND\n" NC,
@@ -859,13 +859,13 @@ int main(void) {
                 pkgs[i].name, pkgs[i].inst, src_label, pkgs[i].got);
         else if (pkgs[i].status == ST_AHEAD)
             printf("  " BLUE "↑  %-33s" NC " installed: " BLUE "%-15s" NC " %s: %s\n",
-                pkgs[i].name, pkgs[i].inst, src_label, pkgs[i].got);
+               pkgs[i].name, pkgs[i].inst, src_label, pkgs[i].got);
         else
             printf("  " GREEN "✓  %-33s" NC " %s\n", pkgs[i].name, pkgs[i].inst);
     }
-       printf("\n" DIM BOLD "SKIPPED\n" NC);
-       for (int cat = CAT_LFS; cat <= CAT_NOISE; cat++) {
-       	if (cat == CAT_HYPRLAND || cat == CAT_BLFS) continue;
+    printf("\n" DIM BOLD "SKIPPED\n" NC);
+    for (int cat = CAT_LFS; cat <= CAT_NOISE; cat++) {
+        if (cat == CAT_HYPRLAND || cat == CAT_BLFS) continue;
        int count = 0;
        for (int i = 0; i < np; i++)
            if (pkgs[i].cat == cat) count++;
