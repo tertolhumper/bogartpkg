@@ -808,13 +808,13 @@ int main(void) {
 //        any = 1;
 //    }
     printf("\n" CYAN BOLD "Package(s) not found Arch Repo API (Needs ARCHMAP/SKIP)\n" NC);
-    int any = 0;
+    int any1 = 0;
     for (int i = 0; i < np; i++) {
         if (pkgs[i].status != ST_NOTFOUND || pkgs[i].cat != CAT_TRACK) continue;
         printf(YELLOW "~" NC " %-20s (queried: %s)\n", pkgs[i].name, pkgs[i].arch);
-        any = 1;
+        any1 = 1;
     }
-    if (!any) printf(GREEN"None\n" NC);
+    if (!any1) printf(GREEN"None\n" NC);
 //    printf("\n" CYAN BOLD "HYPRLAND ECOSYSTEM (GitHub)\n" NC);
 //    for (int i = 0; i < np; i++) {
 //        if (pkgs[i].cat != CAT_HYPRLAND) continue;
@@ -911,7 +911,7 @@ int main(void) {
     printf("Skipped:  " DIM "%3d (LFS/Xorg/Toolchain/EOL)\n" NC, n_skip);
     printf("Total:    " BOLD GREEN "%3d packages\n\n" NC, np);
     printf(RED "OUTDATED\n" NC);
-    any = 0;
+    int any = 0;
     for (int i = 0; i < np; i++) {
         if (pkgs[i].status != ST_OUTDATED || pkgs[i].cat != CAT_TRACK) continue;
         printf(YELLOW "%-23s" NC " installed: " RED "%-13s" NC " arch: " GREEN "%s\n" NC,
