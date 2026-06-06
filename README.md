@@ -11,7 +11,7 @@ Compilation
 ```
 gcc -o check-updates update-checkv9a.c deps.c -lcurl
 install -m 755 check-updates /usr/sbin/check-updates
-```
+
 ## bogartpkg
 Package builder & installer.
 
@@ -19,3 +19,12 @@ Stable: bogartpkgv3
 
 ``` 
 install -m 755 bogartpkgv3 /usr/sbin/bogartpkg
+
+
+## bogartpkg conf 
+Total confs : 139
+Directory
+```
+ mkdir -p /etc/bogartpkg/packages.d/
+
+
