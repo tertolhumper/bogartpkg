@@ -28,7 +28,7 @@ Total confs : 139
 Directory
 ```
 mkdir -p /etc/bogartpkg/packages.d/
-
+```
 
 ##Experimental
 Fetching of package direct from source. Version checker using flat sources.h — in progress.
@@ -38,4 +38,5 @@ Development: update-check11v.c
 ```
 gcc -o check-updates update-checkv11.c deps.c -lcurl
 ```
+
 Note: Package count may show higher not-found rate while sources.h is being populated.
