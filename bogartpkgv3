@@ -209,6 +209,7 @@ cmd_install() {
         dry "  tar xf $srctar -C $builddir --strip-components=${PKG_STRIP_COMPONENTS:-1}"
     else
         rm -rf "$builddir"
+        rm -rf "${SRCDIR}/${PKG_NAME}-${PKG_VER}"
         mkdir -p "$builddir"
         tar xf "$srctar" -C "$builddir" \
             --strip-components="${PKG_STRIP_COMPONENTS:-1}" || \
