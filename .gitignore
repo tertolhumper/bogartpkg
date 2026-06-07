@@ -19,7 +19,6 @@ update-checkv7.c
 update-checkv8.c
 update-checkv9.c
 update-checkv10.c
-update-checkv11.c
 bogartpkg
 bogartpkgv2
 bpkg-edit
