@@ -30,8 +30,8 @@ Directory
 mkdir -p /etc/bogartpkg/packages.d/
 ```
 
-##Experimental
-Fetching of package direct from source. Version checker using flat sources.h — in progress.
+## Experimental
+Fetching of packages direct from source. Version checker using flat sources.h - in progress.
 
 Development: update-check11v.c
 
