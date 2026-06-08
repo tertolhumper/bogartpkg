@@ -12,7 +12,7 @@
 #include "deps.h"
 #include "sources.h"
 
-/* ── Defines ────────────────────────────────────────────────────────── */
+/* Defines */
 #define MAX_PACKAGES  512
 #define MAX_LEN       256
 #define PARALLEL      8
@@ -25,7 +25,7 @@
 #define DIM     "\033[2m"
 #define NC      "\033[0m"
 
-/* ── Package struct ─────────────────────────────────────────────────── */
+/* Package struct */
 typedef enum { ST_OUTDATED=0, ST_CURRENT=1, ST_AHEAD=2,
                ST_NOTFOUND=3, ST_SKIP=4 } Status;
 typedef struct { char *data; size_t size; } Buf;
@@ -48,7 +48,7 @@ const Source *src_lookup(const char *name) {
     return NULL;
 }
 
-/* ── Write callback ─────────────────────────────────────────────────── */
+/* Write callback */
 static size_t wcb(void *p, size_t sz, size_t n, void *ud) {
     Buf *b = ud;
     size_t t = sz * n;
@@ -61,7 +61,7 @@ static size_t wcb(void *p, size_t sz, size_t n, void *ud) {
     return t;
 }
 
-/* ── porg log splitter ──────────────────────────────────────────────── */
+/* porg log splitter */
 void split_porg(const char *entry, char *name, char *ver, size_t len) {
     name[0] = ver[0] = '\0';
     const char *us = strchr(entry, '_');
@@ -121,7 +121,7 @@ void split_porg(const char *entry, char *name, char *ver, size_t len) {
     }
 }
 
-/* ── Version parsers ────────────────────────────────────────────────── */
+/* Version parsers */
 void parse_gh_ver(const char *json, char *out, size_t outlen) {
     out[0] = '\0';
     const char *pr = strstr(json, "\"prerelease\"");
@@ -410,7 +410,7 @@ static void parse_response(Pkg *pk) {
     }
 }
 
-/* ── Main ───────────────────────────────────────────────────────────── */
+/* Main */
 int main(void) {
     FILE *tf = fopen("/root/.github_token", "r");
     char token[256] = "", auth_header[280] = "";
