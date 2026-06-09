@@ -260,6 +260,7 @@ static const Map ARCHMAP[] = {
     {"x265",             "x265"},
     {"inih",             "libinih"},
     {"qt5",              "qt5-base"},
+    {"flit-core", "python-flit-core"},
     {NULL, NULL}
 };
 typedef enum { ST_OUTDATED=0, ST_CURRENT=1, ST_AHEAD=2,
