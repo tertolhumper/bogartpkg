@@ -260,6 +260,7 @@ static const Map ARCHMAP[] = {
     {"x265",             "x265"},
     {"inih",             "libinih"},
     {"qt5",              "qt5-base"},
+    {"flit-core",        "python-flit-core"},
     {NULL, NULL}
 };
 typedef enum { ST_OUTDATED=0, ST_CURRENT=1, ST_AHEAD=2,
@@ -812,7 +813,7 @@ int main(void) {
     for (int i = 0; i < np; i++) {
         if (pkgs[i].status != ST_NOTFOUND || pkgs[i].cat != CAT_TRACK) continue;
         printf(YELLOW "~" NC " %-20s (queried: %s)\n", pkgs[i].name, pkgs[i].arch);
-        any = 1;
+        any1 = 1;
     }
     if (!any1) printf(GREEN"None\n" NC);
     printf("\n" CYAN BOLD "HYPRLAND ECOSYSTEM (GitHub)\n" NC);
