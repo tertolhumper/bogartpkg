@@ -23,7 +23,7 @@ install -m 755 bogartpkgv3 /usr/sbin/bogartpkg
 
 ```
 ## bogartpkg conf 
-Total confs : 216
+Total confs : 217
 
 Directory
 ```
