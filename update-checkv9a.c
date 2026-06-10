@@ -223,7 +223,7 @@ static const Map ARCHMAP[] = {
     {"inih",             "libinih"},
     {"qt5",              "qt5-base"},
     {"flit-core", "python-flit-core"},
-    {"jinja2",      "python-jinja2"},
+    {"jinja2",      "python-jinja"},
     {"markupsafe",  "python-markupsafe"},
     {"packaging",   "python-packaging"},
     {"setuptools",  "python-setuptools"},
@@ -876,7 +876,7 @@ int main(void) {
     printf("BLFS:     " RED "%3d outdated" NC " | " GREEN "%3d current" NC " | " BLUE "%3d ahead" NC
            " | " CYAN "%3d not found" NC " | " DIM "%3d skipped\n\n" NC,
            bno, bnc, bna, bnn, bskip);
-    printf("Skipped:  " DIM "%3d (LFS/Xorg/Toolchain/EOL)\n" NC, n_skip);
+    printf("Skipped:  " DIM "%3d (Xorg/Toolchain/EOL)\n" NC, n_skip);
     printf("Total:    " BOLD GREEN "%3d packages\n\n" NC, np);
     printf(RED "OUTDATED\n" NC);
     int any = 0;
