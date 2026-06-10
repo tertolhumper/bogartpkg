@@ -45,7 +45,7 @@ load_pkg() {
     PKG_NAME="" PKG_VER="" PKG_PREFIX="" PKG_BUILD_TYPE="" PKG_TARBALL="" PKG_CASCADE_SKIP="" PKG_STRIP_COMPONENTS=""
     PKG_URL1="" PKG_URL2="" PKG_URL3=""
     PKG_OPTS="" PKG_CMAKE_OPTS="" PKG_MESON_OPTS="" PKG_CARGO_OPTS=""
-    PKG_PRE_BUILD="" PKG_POST_INSTALL="" PKG_CUSTOM_BUILD="" PKG_CUSTOM_INSTALL="" PKG_SKIP_AUTOGEN=""
+    PKG_PRE_BUILD="" PKG_POST_INSTALL="" PKG_CUSTOM_BUILD="" PKG_CUSTOM_INSTALL="" PKG_SKIP_AUTOGEN="" PKG_SKIP_EXTRACT=""
     # shellcheck source=/dev/null
     source "$conf"
     [ -n "$PKG_NAME" ] || die "PKG_NAME not set in $conf"
@@ -211,9 +211,13 @@ cmd_install() {
         rm -rf "$builddir"
         rm -rf "${SRCDIR}/${PKG_NAME}-${PKG_VER}"
         mkdir -p "$builddir"
-        tar xf "$srctar" -C "$builddir" \
-            --strip-components="${PKG_STRIP_COMPONENTS:-1}" || \
-            die "Failed to extract $srctar"
+        if [ -z "${PKG_SKIP_EXTRACT:-}" ]; then
+            tar xf "$srctar" -C "$builddir" \
+                --strip-components="${PKG_STRIP_COMPONENTS:-1}" || \
+                die "Failed to extract $srctar"
+        else
+            cp "$srctar" "$builddir/"
+        fi
     fi
     if [ -z "$DRYRUN" ]; then
         cd "$builddir"
