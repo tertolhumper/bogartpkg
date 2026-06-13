@@ -127,7 +127,7 @@ static const CatEntry CATALOG[] = {
     {"hyprwire",            CAT_HYPRLAND},
     {"wlroots",             CAT_HYPRLAND},
     /* XORG / X11 (legacy) */
-    {"xorg-server",           CAT_XORG}, {"xwayland",            CAT_XORG},
+    {"xorg-server",           CAT_XORG}, {"encodings",           CAT_XORG},
     {"xrandr",                CAT_XORG}, {"xcursorgen",          CAT_XORG},
     {"xcursor-themes",        CAT_XORG}, {"xkbcomp",             CAT_XORG},
     {"mkfontscale",           CAT_XORG}, {"xcb-proto",           CAT_XORG},

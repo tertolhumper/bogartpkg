@@ -127,7 +127,7 @@ static const CatEntry CATALOG[] = {
     {"hyprwire",            CAT_HYPRLAND},
     {"wlroots",             CAT_HYPRLAND},
     /* XORG / X11 (legacy) */
-    {"xorg-server",           CAT_XORG}, {"xwayland",            CAT_XORG},
+    {"xorg-server",           CAT_XORG}, {"encodings",           CAT_XORG},
     {"xrandr",                CAT_XORG}, {"xcursorgen",          CAT_XORG},
     {"xcursor-themes",        CAT_XORG}, {"xkbcomp",             CAT_XORG},
     {"mkfontscale",           CAT_XORG}, {"xcb-proto",           CAT_XORG},
@@ -141,7 +141,6 @@ static const CatEntry CATALOG[] = {
     {"font-bh-ttf",             CAT_XORG}, {"font-bh-type1",     CAT_XORG},
     {"font-ibm-type1",          CAT_XORG}, {"font-misc-ethiopic", CAT_XORG},
     {"font-util",               CAT_XORG}, {"font-xfree86-type1", CAT_XORG},
-    {"encodings",               CAT_XORG},
     /* BLFS */
     {"pyyaml",           CAT_BLFS}, {"docutils",      CAT_BLFS},
     {"cython",           CAT_BLFS}, {"go",            CAT_BLFS},
