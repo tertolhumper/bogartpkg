@@ -3,7 +3,7 @@
 Custom package manager for Bogart Linux (LFS/BLFS-based).
 
 ## check-updates
-Version checker for all tracked packages (448 packages).
+Version checker for all tracked packages (446 packages).
 
 Stable: update-checkv9a.c | update-checkv9b.c for debugging
 
