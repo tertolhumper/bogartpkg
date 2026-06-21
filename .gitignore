@@ -29,7 +29,12 @@ bpkg-info
 cpan-info
 soname
 hunt
+huntv2
 rebuild-deps
 rebuild-depsv2
 packages.h
 sha256sums.txt
+deps.h
+deps.conf
+deps.conf.verified
+
