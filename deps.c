@@ -4,9 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-
-/* Internal table */
-
 #define MAX_ENTRIES 512
 #define MAX_LINE    1024
 
@@ -14,7 +11,6 @@ static DepEntry  table[MAX_ENTRIES];
 static int       table_size = 0;
 static int       loaded     = 0;
 
-/* Helpers */
 
 static char *xstrdup(const char *s) {
     char *p = strdup(s);
@@ -22,7 +18,6 @@ static char *xstrdup(const char *s) {
     return p;
 }
 
-/* Trim leading and trailing whitespace in-place, return start pointer */
 static char *trim(char *s) {
     while (isspace((unsigned char)*s)) s++;
     char *end = s + strlen(s) - 1;
@@ -30,7 +25,6 @@ static char *trim(char *s) {
     return s;
 }
 
-/* Return the DepEntry for pkg, or NULL if not in table */
 static DepEntry *find_entry(const char *pkg) {
     for (int i = 0; i < table_size; i++)
         if (strcmp(table[i].pkg, pkg) == 0)
@@ -38,7 +32,6 @@ static DepEntry *find_entry(const char *pkg) {
     return NULL;
 }
 
-/* Check if pkg is already in the seen[] array */
 static int already_seen(char **seen, int n, const char *pkg) {
     for (int i = 0; i < n; i++)
         if (strcmp(seen[i], pkg) == 0)
@@ -46,7 +39,6 @@ static int already_seen(char **seen, int n, const char *pkg) {
     return 0;
 }
 
-/* deps_load()*/
 
 int deps_load(const char *path) {
     if (!path) path = DEPS_CONF_DEFAULT;
@@ -114,8 +106,6 @@ int deps_load(const char *path) {
     return 0;
 }
 
-/* deps_free() */
-
 void deps_free(void) {
     for (int i = 0; i < table_size; i++) {
         free(table[i].pkg);
@@ -125,8 +115,6 @@ void deps_free(void) {
     table_size = 0;
     loaded     = 0;
 }
-
-/* deps_cascade() */
 
 int deps_cascade(const char **outdated, char **out, int *out_count) {
     if (!loaded) {
@@ -187,8 +175,6 @@ int deps_cascade(const char **outdated, char **out, int *out_count) {
     return toolchain_hit ? 1 : 0;
 }
 
-/* deps_print_cascade()*/
-
 void deps_print_cascade(const char **outdated, int toolchain_hit) {
     /* Toolchain warning */
     if (toolchain_hit) {
@@ -208,7 +194,6 @@ void deps_print_cascade(const char **outdated, int toolchain_hit) {
         );
     }
 
-    /* Collect full cascade */
     char *cascade[MAX_CASCADE];
     int   n_cascade = 0;
     int   rc = deps_cascade(outdated, cascade, &n_cascade);
@@ -219,7 +204,6 @@ void deps_print_cascade(const char **outdated, int toolchain_hit) {
     fprintf(stdout,
         "\nREBUILD REQUIRED (dependency cascade)\n");
 
-    /* Per-trigger: show direct dependents */
     for (int i = 0; outdated[i] != NULL; i++) {
         DepEntry *e = find_entry(outdated[i]);
         if (!e || e->is_toolchain || e->ndeps == 0) continue;
@@ -229,7 +213,6 @@ void deps_print_cascade(const char **outdated, int toolchain_hit) {
         fprintf(stdout, "\n");
     }
 
-    /* Full transitive set — numbered list */
     fprintf(stdout, "\n  Full rebuild order (%d packages):\n", n_cascade);
     for (int i = 0; i < n_cascade; i++)
         fprintf(stdout, "  %3d. %s\n", i + 1, cascade[i]);
