@@ -43,7 +43,6 @@ static int already_seen(char **seen, int n, const char *pkg) {
 int deps_load(const char *path) {
     if (!path) path = DEPS_CONF_DEFAULT;
 
-    /* Allow override via env */
     const char *env = getenv("DEPS_CONF");
     if (env) path = env;
 
@@ -61,10 +60,8 @@ int deps_load(const char *path) {
         lineno++;
         char *p = trim(line);
 
-        /* Skip blank lines and comments */
         if (*p == '\0' || *p == '#') continue;
 
-        /* Find the colon separator */
         char *colon = strchr(p, ':');
         if (!colon) {
             fprintf(stderr, "deps: %s:%d: missing colon, skipping\n", path, lineno);
@@ -87,13 +84,11 @@ int deps_load(const char *path) {
         memset(e, 0, sizeof(*e));
         e->pkg = xstrdup(pkg_raw);
 
-        /* Check for toolchain sentinel */
         if (strcmp(deps_raw, TOOLCHAIN_SENTINEL) == 0) {
             e->is_toolchain = 1;
             continue;
         }
 
-        /* Tokenize space-separated dependents */
         char *tok = strtok(deps_raw, " \t");
         while (tok && e->ndeps < MAX_DEPS) {
             e->deps[e->ndeps++] = xstrdup(tok);
@@ -125,17 +120,14 @@ int deps_cascade(const char **outdated, char **out, int *out_count) {
     *out_count = 0;
     int toolchain_hit = 0;
 
-    /* BFS queue */
     char  *queue[MAX_CASCADE];
     int    q_head = 0, q_tail = 0;
 
-    /* Seed queue with the outdated packages themselves */
     for (int i = 0; outdated[i] != NULL; i++) {
         if (q_tail < MAX_CASCADE && !already_seen(queue, q_tail, outdated[i]))
             queue[q_tail++] = (char *)outdated[i];
     }
 
-    /* Seen list — pre-populated with triggers so they don't appear in output */
     char *seen[MAX_CASCADE];
     int   n_seen = 0;
 
@@ -158,14 +150,13 @@ int deps_cascade(const char **outdated, char **out, int *out_count) {
             const char *dep = e->deps[i];
 
             if (!already_seen(seen, n_seen, dep)) {
-                /* Guard both seen and output arrays */
-                if (n_seen < MAX_CASCADE)
+                
+				if (n_seen < MAX_CASCADE)
                     seen[n_seen++] = (char *)dep;
 
                 if (*out_count < MAX_CASCADE)
                     out[(*out_count)++] = (char *)dep;
 
-                /* Enqueue for further expansion */
                 if (q_tail < MAX_CASCADE)
                     queue[q_tail++] = (char *)dep;
             }
@@ -176,8 +167,8 @@ int deps_cascade(const char **outdated, char **out, int *out_count) {
 }
 
 void deps_print_cascade(const char **outdated, int toolchain_hit) {
-    /* Toolchain warning */
-    if (toolchain_hit) {
+    
+	if (toolchain_hit) {
         fprintf(stdout,
             "\n"
             "  TOOLCHAIN UPDATE DETECTED\n"
