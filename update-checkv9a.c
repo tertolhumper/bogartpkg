@@ -78,6 +78,7 @@ static const BlfsSrc BLFSSRC[] = {
     {"nv-codec-headers",    SRC_GITHUB, "FFmpeg/nv-codec-headers", NULL},
     {"nvidia-vaapi-driver", SRC_GITHUB, "elFarto/nvidia-vaapi-driver", NULL},
     {"rofi-wayland",        SRC_GITHUB, "lbonn/rofi",           NULL},
+    {"shadow",              SRC_GITHUB, "shadow-maint/shadow",  NULL},
     {"swww",                SRC_GITHUB, "LGFae/swww",           NULL},
     {"tailscale",           SRC_GITHUB, "tailscale/tailscale",  NULL},
     {"waypaper",            SRC_GITHUB, "anufrievroman/waypaper", NULL},
@@ -160,7 +161,8 @@ static const CatEntry CATALOG[] = {
     {"waypaper",         CAT_BLFS}, {"swww",          CAT_BLFS},
     {"porg",             CAT_BLFS}, {"ps_mem",        CAT_BLFS},
     {"agg",              CAT_BLFS}, {"udis86",        CAT_BLFS},
-    {"tailscale",        CAT_BLFS}, {"nvidia-vaapi-driver", CAT_BLFS},
+    {"tailscale",        CAT_BLFS}, {"shadow",        CAT_BLFS},
+    {"nvidia-vaapi-driver", CAT_BLFS},   
     /* NOISE */
     {NULL, 0}
 };
