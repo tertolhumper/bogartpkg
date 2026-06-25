@@ -70,6 +70,7 @@ static const BlfsSrc BLFSSRC[] = {
     {"yasm",                SRC_ARCH,   NULL,                   NULL},
     /* SRC_GITHUB — /releases/latest, skips prerelease */
     {"agg",                 SRC_GITHUB, "asciinema/agg",        NULL},
+    {"bochs",               SRC_GITHUB, "bochs-emu/Bochs",      NULL}, 
     {"doxygen",             SRC_GITHUB, "doxygen/doxygen",      NULL},
     {"ironbar",             SRC_GITHUB, "JakeStanger/ironbar",  NULL},
     {"kitty",               SRC_GITHUB, "kovidgoyal/kitty",     NULL},
@@ -162,7 +163,7 @@ static const CatEntry CATALOG[] = {
     {"porg",             CAT_BLFS}, {"ps_mem",        CAT_BLFS},
     {"agg",              CAT_BLFS}, {"udis86",        CAT_BLFS},
     {"tailscale",        CAT_BLFS}, {"shadow",        CAT_BLFS},
-    {"nvidia-vaapi-driver", CAT_BLFS},   
+    {"bochs",			 CAT_BLFS}, {"nvidia-vaapi-driver", CAT_BLFS},   
     /* NOISE */
     {NULL, 0}
 };
