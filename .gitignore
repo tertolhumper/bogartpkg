@@ -19,11 +19,12 @@ update-checkv7.c
 update-checkv8.c
 update-checkv9.c
 update-checkv9c.c
-packages.h
+update-checkv11.c
 update-checkv10.c
 bogartpkg
 bogartpkgv2
 bogartpkgv4
+bogartlive-build.sh
 bpkg-edit
 bpkg-info
 cpan-info
@@ -36,4 +37,4 @@ packages.h
 sha256sums.txt
 deps.conf
 deps.conf.verified
-
+sources.h
