@@ -83,6 +83,7 @@ static const BlfsSrc BLFSSRC[] = {
     {"swww",                SRC_GITHUB, "LGFae/swww",           NULL},
     {"tailscale",           SRC_GITHUB, "tailscale/tailscale",  NULL},
     {"waypaper",            SRC_GITHUB, "anufrievroman/waypaper", NULL},
+    {"usb-modeswitch",      SRC_GITHUB, "pbatard/usb-modeswitch", NULL},
     /* SRC_GHTAG — /tags with optional prefix filter */
     {"ncpamixer",           SRC_GHTAG,  "fulhax/ncpamixer",     NULL},
     {"ps_mem",              SRC_GHTAG,  "pixelb/ps_mem",        NULL},
@@ -162,8 +163,9 @@ static const CatEntry CATALOG[] = {
     {"porg",             CAT_BLFS}, {"ps_mem",        CAT_BLFS},
     {"agg",              CAT_BLFS}, {"udis86",        CAT_BLFS},
     {"tailscale",        CAT_BLFS}, {"shadow",        CAT_BLFS},
-    {"bochs",			 CAT_BLFS}, {"nvidia-vaapi-driver", CAT_BLFS},
-	/* NOISE */
+    {"bochs",	         CAT_BLFS}, {"nvidia-vaapi-driver", CAT_BLFS},
+    {"usb-modeswitch",   CAT_BLFS},
+    /* NOISE */
     {NULL, 0}
 };
 typedef struct { const char *name; const char *repo; } GHMap;
