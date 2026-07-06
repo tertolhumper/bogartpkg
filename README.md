@@ -3,7 +3,7 @@
 Custom package manager for Bogart Linux (LFS/BLFS-based).
 
 ## check-updates
-Version checker for all tracked packages (454 packages).
+Version checker for all tracked packages (456 packages).
 
 Stable: update-checkv9a.c | update-checkv9b.c for debugging
 
@@ -23,10 +23,19 @@ install -m 755 bogartpkgv3 /usr/sbin/bogartpkg
 
 ```
 ## bogartpkg conf 
-Total confs : 300
+Total confs : 303
 
 Directory
 ```
 mkdir -p /etc/bogartpkg/packages.d/
 ```
 
+## bogartgraph
+Graph for dependencies
+
+Compilation 
+
+```
+gcc -o bogartgraph bogartgraph.c
+install -m 755 bogartgraph /usr/sbin/bogartgraph
+```
