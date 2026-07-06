@@ -320,6 +320,7 @@ cmd_install() {
     step "Post-install: ldconfig + rebuild-deps --rescan $PKG_NAME"
     run ldconfig
     run rebuild-deps --rescan "$PKG_NAME"
+    bogartgraph --rescan "$PKG_NAME" 2>/dev/null || true
     # Remove old porg entry if version changed
     if [ -z "$DRYRUN" ] && [ -n "$old_porg_name" ] \
         && [ "$old_porg_name" != "${PKG_NAME}-${PKG_VER}" ]; then
