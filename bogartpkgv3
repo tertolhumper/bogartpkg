@@ -21,7 +21,7 @@ ok()   { echo -e "${GRN}[ OK ]${NC}  $*"; }
 warn() { echo -e "${YLW}[WARN]${NC}  $*"; }
 step() { echo -e "${CYN}[STEP]${NC}  $*"; }
 dry()  { echo -e "${YLW}[DRYRUN]${NC} $*"; }
-# run() — executes or prints depending on DRYRUN
+
 run() {
     if [ -n "$DRYRUN" ]; then
         dry "  $*"
@@ -36,7 +36,7 @@ log_action() {
     mkdir -p "$(dirname "$LOGFILE")"
     echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOGFILE"
 }
-# Load package .conf
+
 load_pkg() {
     local pkg="$1"
     local conf="$PKGDIR/${pkg}.conf"
@@ -52,7 +52,7 @@ load_pkg() {
     [ -n "$PKG_VER"  ] || die "PKG_VER not set in $conf"
     [ -n "$PKG_URL1" ] || die "PKG_URL1 not set in $conf"
 }
-# 3-URL fallback download 
+
 download_source() {
     local dest="$1"
     local urls=("$PKG_URL1" "${PKG_URL2:-}" "${PKG_URL3:-}")
@@ -77,7 +77,7 @@ download_source() {
     done
     die "All $attempt download URL(s) failed for ${PKG_NAME}-${PKG_VER}"
 }
-# Auto-detect build system
+
 detect_build() {
     # Honour explicit override from conf
     [ -n "$PKG_BUILD_TYPE" ] && { echo "$PKG_BUILD_TYPE"; return; }
@@ -89,11 +89,11 @@ detect_build() {
     else die "Cannot detect build system in $(pwd)"
     fi
 }
-# Build backends
+
 build_autotools() {
     step "autotools build: configure → make → porg install"
     [ -f "autogen.sh" ] && [ -z "$PKG_SKIP_AUTOGEN" ] && { info "Running autogen.sh..."; run bash autogen.sh; }
-    # shellcheck disable=SC2086
+    
     run ./configure --prefix="${PKG_PREFIX:-/usr}" ${PKG_OPTS}
     run make -j"$(nproc)"
     local s="/tmp/bogartpkg-inst-$$.sh"
@@ -102,7 +102,7 @@ build_autotools() {
 }
 build_cmake() {
     step "cmake build: configure → build → porg install"
-    # shellcheck disable=SC2086
+    
     run cmake -B build \
         -DCMAKE_INSTALL_PREFIX="${PKG_PREFIX:-/usr}" \
         -DCMAKE_BUILD_TYPE=Release \
@@ -115,7 +115,7 @@ build_cmake() {
 }
 build_meson() {
     step "meson build: setup → ninja → porg install"
-    # shellcheck disable=SC2086
+    
     run meson setup build \
         --prefix="${PKG_PREFIX:-/usr}" \
         --buildtype=release \
@@ -127,7 +127,7 @@ build_meson() {
 }
 build_cargo() {
     step "cargo build: build --release → porg install"
-    # shellcheck disable=SC2086
+    
     run cargo build --release ${PKG_CARGO_OPTS}
     local prefix="${PKG_PREFIX:-/usr}"
     local s="/tmp/bogartpkg-inst-$$.sh"
@@ -159,11 +159,11 @@ INSTALL_EOF
 is_installed() {
     porg -i "${PKG_NAME}-${PKG_VER}" &>/dev/null
 }
-# Commands
+
 cmd_install() {
     local force=""
     local pkg=""
-    # Parse args
+    
     for arg in "$@"; do
         case "$arg" in
             --force)    force="yes" ;;
@@ -174,22 +174,22 @@ cmd_install() {
     [ -n "$pkg" ] || die "Usage: bogartpkg install <pkg> [--force] [--dry-run]"
     require_root
     load_pkg "$pkg"
-    [ -n "$DRYRUN" ] && warn "=== DRY RUN — nothing will be built or installed ==="
+    [ -n "$DRYRUN" ] && warn "Dry Run (nothing will be built or installed)"
     info "Package: ${PKG_NAME}-${PKG_VER}"
     info "Prefix:  ${PKG_PREFIX:-/usr}"
-    # Skip if already installed (unless --force or --dry-run)
+    
     if is_installed && [ -z "$force" ] && [ -z "$DRYRUN" ]; then
         warn "${PKG_NAME}-${PKG_VER} is already installed. Use --force to rebuild."
         exit 0
     fi
     [ -n "$DRYRUN" ] && is_installed && \
         warn "${PKG_NAME}-${PKG_VER} already installed — dry run shows what --force would do"
-    # Resolve tarball path — PKG_TARBALL overrides basename of URL1
+    
     local tarball
     tarball="${PKG_TARBALL:-$(basename "$PKG_URL1")}"
     local srctar="${SRCDIR}/${tarball}"
     builddir="${BUILDROOT}/${PKG_NAME}-${PKG_VER}"
-    # Download
+
     if [ -n "$DRYRUN" ]; then
         if [ -f "$srctar" ]; then
             info "Source cached: $srctar"
@@ -202,7 +202,7 @@ cmd_install() {
         mkdir -p "$BUILDROOT"
         download_source "$srctar"
     fi
-    # Extract
+    
     step "Extracting to $builddir ..."
     if [ -n "$DRYRUN" ]; then
         dry "  mkdir -p $builddir"
@@ -222,7 +222,7 @@ cmd_install() {
     if [ -z "$DRYRUN" ]; then
         cd "$builddir"
     fi
-    # Pre-build hook
+    
     if [ -n "$PKG_PRE_BUILD" ]; then
         step "Pre-build hook:"
         if [ -n "$DRYRUN" ]; then
@@ -231,7 +231,7 @@ cmd_install() {
             eval "$PKG_PRE_BUILD"
         fi
     fi
-    # Pre-install backup (for rollback on failure)
+    
     local backup_dir=""
     local old_porg_name=""
     if [ -z "$DRYRUN" ]; then
@@ -252,7 +252,7 @@ cmd_install() {
             info "Backed up $backed_up files from ${old_porg_name}"
         fi
     fi
-    # Rollback function
+    
     rollback() {
         if [ -n "$backup_dir" ] && [ -d "$backup_dir" ]; then
             warn "Install failed — rolling back ${old_porg_name}..."
@@ -268,7 +268,7 @@ cmd_install() {
         rm -rf "$builddir"
         exit 1
     }
-    # Detect build system
+    
     local build_type
     if [ -n "$DRYRUN" ]; then
         if [ -n "$PKG_BUILD_TYPE" ]; then
@@ -281,7 +281,7 @@ cmd_install() {
         build_type="$(detect_build)"
         info "Detected build system: $build_type"
     fi
-    # Build (with rollback trap)
+    
     if [ -z "$DRYRUN" ]; then
         trap rollback ERR
         case "$build_type" in
@@ -305,7 +305,7 @@ cmd_install() {
             dry "porg -lp ${PKG_NAME}-${PKG_VER} <install>"
         fi
     fi
-    # Post-install hook
+    
     if [ -n "$PKG_POST_INSTALL" ]; then
         step "Post-install hook:"
         if [ -n "$DRYRUN" ]; then
@@ -316,18 +316,18 @@ cmd_install() {
             trap - ERR
         fi
     fi
-    # ldconfig + rebuild-deps
+    
     step "Post-install: ldconfig + rebuild-deps --rescan $PKG_NAME"
     run ldconfig
     run rebuild-deps --rescan "$PKG_NAME"
     bogartgraph --rescan "$PKG_NAME" 2>/dev/null || true
-    # Remove old porg entry if version changed
+    
     if [ -z "$DRYRUN" ] && [ -n "$old_porg_name" ] \
         && [ "$old_porg_name" != "${PKG_NAME}-${PKG_VER}" ]; then
         step "Removing old porg entry: $old_porg_name"
-        porg -dv "$old_porg_name" 2>/dev/null || true
+        porg -rv "$old_porg_name" 2>/dev/null || true
     fi
-    # Cleanup backup + staging
+    
     [ -n "$backup_dir" ] && rm -rf "$backup_dir"
     step "Cleanup: rm -rf $builddir"
     run rm -rf "$builddir"
@@ -366,12 +366,10 @@ cmd_info() {
 cmd_list() {
     local installed
     echo "Available packages:"
-    echo "─────────────────────────────────────────"
+    echo "-------------------------"
     for f in "$PKGDIR"/*.conf; do
         [ -f "$f" ] || continue
-        # Reset and source just for name/ver
         PKG_NAME="" PKG_VER=""
-        # shellcheck source=/dev/null
         source "$f"
         installed=""
         is_installed 2>/dev/null && installed=" [installed]"
@@ -390,11 +388,8 @@ cmd_cascade() {
     [ -n "$pkg" ] || die "Usage: bogartpkg cascade <pkg> [--dry-run]"
     require_root
     load_pkg "$pkg"
-    local cache="/var/cache/rebuild-deps-cache.txt"
-    [ -f "$cache" ] || die "Cache not found: $cache"
-    [ -n "$DRYRUN" ] && warn "=== DRY RUN === nothing will be built ==="
-    info "Building cascade for ${PKG_NAME}..."
-    # Step 1: find sonames this package provides 
+    [ -n "$DRYRUN" ] && warn "Dry Run (nothing will be built)"
+    info "Building cascade for ${PKG_NAME}..."    
     local sonames=()
     while IFS= read -r f; do
         [ -f "$f" ] || continue
@@ -418,7 +413,6 @@ cmd_cascade() {
         fi
     fi
     if [ ${#sonames[@]} -gt 0 ]; then
-    # deduplicate sonames
     local unique_sonames=()
     declare -A seen_sn
     for sn in "${sonames[@]}"; do
@@ -426,85 +420,27 @@ cmd_cascade() {
     done
     sonames=("${unique_sonames[@]}")
     info "Sonames provided: ${sonames[*]}"
-    # Step 2: find unique dependents from cache 
+    # Find unique dependents via bogartgraph
     declare -A seen_deps
     local deps=()
-    for sn in "${sonames[@]}"; do
-        while IFS= read -r dep; do
-            if [ -n "$dep" ] && [ -z "${seen_deps[$dep]+x}" ] \
-                             && [ "$dep" != "$PKG_NAME" ]; then
-                seen_deps[$dep]=1
-                deps+=("$dep")
-            fi
-        done < <(awk -v s="$sn" '$2==s{print $1}' "$cache" | sort -u)
-    done
+    while IFS= read -r dep; do
+        if [ -n "$dep" ] && [ -z "${seen_deps[$dep]+x}" ] \
+                         && [ "$dep" != "$PKG_NAME" ]; then
+            seen_deps[$dep]=1
+            deps+=("$dep")
+        fi
+    done < <(bogartgraph --rdeps "$PKG_NAME" 2>/dev/null | grep -v '^Packages\|^No sonames' | sed 's/^[[:space:]]*//')
     if [ ${#deps[@]} -eq 0 ]; then
         info "No dependents found — nothing to rebuild."
         return 0
     fi
     fi
-    # Step 3: topo-sort among dependents 
-    # For each dep, find sonames IT provides, then check if any other
-    # dep in the list needs those sonames → build edge A→B (A before B)
-    declare -A provides   # dep -> space-separated sonames it provides
-    declare -A in_degree
-    declare -A edges
-    for dep in "${deps[@]}"; do
-	in_degree[$dep]=0
-        edges[$dep]=""
-        skip_flag=$(bash -c "source $PKGDIR/${dep}.conf 2>/dev/null; echo \${PKG_CASCADE_SKIP:-}")
-        [ -n "$skip_flag" ] && { provides[$dep]=""; continue; }
-        # fast lookup — scan porg db dir directly
-	local matches=(/var/lib/porg/${dep}-*)
-        [ -e "${matches[0]}" ] && pname=$(basename "${matches[0]}") || pname=""
-        if [ -z "$pname" ]; then
-            matches=(/var/lib/porg/${dep}*)
-            [ -e "${matches[0]}" ] && pname=$(basename "${matches[0]}") || pname=""
-        fi
-        [ -z "$pname" ] && continue
-        local sns=""
-        while IFS= read -r f; do
-            [ -f "$f" ] || continue
-            local sn
-            sn=$(readelf -d "$f" 2>/dev/null \
-                | awk '/SONAME/{gsub(/[\[\]]/,"",$NF); print $NF}')
-            [ -n "$sn" ] && sns="$sns $sn"
-        done < <(porg -f "$pname" 2>/dev/null | grep '\.so' || true)
-        provides[$dep]="$sns"
-    done
-    # Build edges
-    for provider in "${deps[@]}"; do
-        for sn in ${provides[$provider]:-}; do
-            for consumer in "${deps[@]}"; do
-                [ "$consumer" = "$provider" ] && continue
-                if awk -v p="$consumer" -v s="$sn" \
-                    '$1==p && $2==s{found=1} END{exit !found}' "$cache"; then
-                    edges[$provider]+=" $consumer"
-                    (( in_degree[$consumer]++ )) || true
-                fi
-            done
-        done
-    done
-    # Kahn's algorithm
-    local queue=() ordered=()
-    for dep in "${deps[@]}"; do
-        [ "${in_degree[$dep]}" -eq 0 ] && queue+=("$dep") || true
-    done
-    while [ ${#queue[@]} -gt 0 ]; do
-        local node="${queue[0]}"
-        queue=("${queue[@]:1}")
-        ordered+=("$node")
-        for neighbor in ${edges[$node]:-}; do
-            [ -z "$neighbor" ] && continue
-            (( in_degree[$neighbor]-- )) || true
-            [ "${in_degree[$neighbor]}" -eq 0 ] && queue+=("$neighbor") || true
-        done
-    done
-    # Append anything not reached (cycles/unresolved)
-    for dep in "${deps[@]}"; do
-        printf '%s\n' "${ordered[@]}" | grep -qx "$dep" || ordered+=("$dep")
-    done
-    #  Step 4: print plan 
+    # topo-sorted order via bogartgraph
+    local ordered=()
+    while IFS= read -r dep; do
+        [ -n "$dep" ] && ordered+=("$dep")
+    done < <(bogartgraph --cascade "$PKG_NAME" 2>/dev/null | grep -E '^\s+[0-9]+\.' | sed 's/^[[:space:]]*[0-9]*\.[[:space:]]*//')
+    #  print plan 
     echo ""
     info "Cascade rebuild order (${#ordered[@]} packages):"
     for i in "${!ordered[@]}"; do
@@ -520,7 +456,7 @@ cmd_cascade() {
     done
     echo ""
     [ -n "$DRYRUN" ] && { dry "Dry run — no packages built."; return 0; }
-    # Step 5: build each in order 
+    # build each in order 
     local built=0 skipped=0
     for dep in "${ordered[@]}"; do
         if [ ! -f "$PKGDIR/${dep}.conf" ]; then
@@ -528,7 +464,6 @@ cmd_cascade() {
             (( skipped++ )) || true
             continue
         fi
-        # Check PKG_CASCADE_SKIP flag
         local skip_flag=""
         skip_flag=$(bash -c "source $PKGDIR/${dep}.conf 2>/dev/null; echo \${PKG_CASCADE_SKIP:-}")
         if [ -n "$skip_flag" ]; then
@@ -536,7 +471,7 @@ cmd_cascade() {
             (( skipped++ )) || true
             continue
         fi
-        info "━━━ Rebuilding: $dep ━━━"
+        info "--- Rebuilding: $dep ---"
         BOGARTPKG_CHILD=1 bogartpkg install "$dep" --force
         (( built++ )) || true
     done
@@ -561,26 +496,25 @@ Source cache:  $SRCDIR
 Log:           $LOGFILE
 EOF
 }
-# Entry point
+
 [ $# -lt 1 ] && { usage; exit 1; }
 CMD="$1"; shift
 case "$CMD" in
     install)
         mkdir -p "$(dirname "$LOGFILE")"
-        # Tee only if this is a top-level invocation, not a cascade child
         [[ -z "${BOGARTPKG_CHILD:-}" ]] && exec > >(tee -a "$LOGFILE") 2>&1
-        echo "━━━ bogartpkg install $* — $(date '+%Y-%m-%d %H:%M:%S') ━━━"
+        echo "--- bogartpkg install $* — $(date '+%Y-%m-%d %H:%M:%S') ---"
         cmd_install "$@"
         ;;
     remove)
         mkdir -p "$(dirname "$LOGFILE")"
         exec > >(tee -a "$LOGFILE") 2>&1
-        echo "━━━ bogartpkg remove $1 — $(date '+%Y-%m-%d %H:%M:%S') ━━━"
+        echo "--- bogartpkg remove $1 — $(date '+%Y-%m-%d %H:%M:%S') ---"
         cmd_remove "$1"
         ;;
     cascade)
         mkdir -p "$(dirname "$LOGFILE")"
-        echo "━━━ bogartpkg cascade $* — $(date '+%Y-%m-%d %H:%M:%S') ━━━" >> "$LOGFILE"
+        echo "--- bogartpkg cascade $* — $(date '+%Y-%m-%d %H:%M:%S') ---" >> "$LOGFILE"
         cmd_cascade "$@" 
         ;;
     info)    cmd_info    "$1" ;;
