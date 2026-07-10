@@ -30,7 +30,7 @@ install -m 755 bogartpkgv3 /usr/sbin/bogartpkg
 
 ```
 ## bogartpkg conf 
-Total confs : 303
+Total confs : 309
 
 Directory
 ```
