@@ -83,7 +83,6 @@ static const BlfsSrc BLFSSRC[] = {
     {"swww",                SRC_GITHUB, "LGFae/swww",           NULL},
     {"tailscale",           SRC_GITHUB, "tailscale/tailscale",  NULL},
     {"waypaper",            SRC_GITHUB, "anufrievroman/waypaper", NULL},
-    {"usb-modeswitch",      SRC_GITHUB, "pbatard/usb-modeswitch", NULL},
     /* SRC_GHTAG — /tags with optional prefix filter */
     {"ncpamixer",           SRC_GHTAG,  "fulhax/ncpamixer",     NULL},
     {"ps_mem",              SRC_GHTAG,  "pixelb/ps_mem",        NULL},
@@ -95,6 +94,7 @@ static const BlfsSrc BLFSSRC[] = {
     /* SRC_SKIP */
     {"qt5",                 SRC_SKIP,   NULL,                   NULL},
     {"xorriso",             SRC_SKIP,   NULL,                   NULL},
+    {"usb-modeswitch",      SRC_SKIP,    NULL,                  NULL},
     {NULL, 0, NULL, NULL}
 };
 const BlfsSrc *blfs_src_lookup(const char *name) {
