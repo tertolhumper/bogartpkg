@@ -458,6 +458,7 @@ cmd_cascade() {
     [ -n "$DRYRUN" ] && { dry "Dry run — no packages built."; return 0; }
     # build each in order 
     local built=0 skipped=0
+    local failed=()
     for dep in "${ordered[@]}"; do
         if [ ! -f "$PKGDIR/${dep}.conf" ]; then
             warn "Skipping ${dep} — no conf in $PKGDIR"
@@ -472,11 +473,23 @@ cmd_cascade() {
             continue
         fi
         info "--- Rebuilding: $dep ---"
-        BOGARTPKG_CHILD=1 bogartpkg install "$dep" --force
-        (( built++ )) || true
+        if BOGARTPKG_CHILD=1 bogartpkg install "$dep" --force; then
+            (( built++ )) || true
+        else
+            warn "FAILED: $dep"
+            failed+=("$dep")
+        fi
     done
     echo ""
-    ok "Cascade complete: $built rebuilt, $skipped skipped (no conf or cascade-skip)"
+    if [ ${#failed[@]} -gt 0 ]; then
+        ok "Cascade complete: $built rebuilt, ${#failed[@]} failed, $skipped skipped (no conf or cascade-skip)"
+        echo -e "${RED}FAILED:${NC}"
+        for f in "${failed[@]}"; do
+            echo -e "  ${RED}✗${NC} $f — see $LOGFILE"
+        done
+    else
+        ok "Cascade complete: $built rebuilt, $skipped skipped (no conf or cascade-skip)"
+    fi
     log_action "CASCADE ${PKG_NAME}-${PKG_VER} → ${ordered[*]}"
 }
 usage() {
