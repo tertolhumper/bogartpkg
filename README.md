@@ -10,11 +10,11 @@ packages, and a bidirectional dependency graph tool built in C.
 Version tracker for 456 packages across Arch Linux API, GitHub releases, 
 GitLab, and BLFS sources. Written in C with libcurl for parallel fetching.
 
-Stable: update-checkv10.c
+Stable: update-checkv10a.c
 
 Compilation
 ```
-gcc -o check-updates update-checkv10.c deps.c -lcurl
+gcc -o check-updates update-checkv10a.c deps.c -lcurl
 install -m 755 check-updates /usr/sbin/check-updates
 ```
 
