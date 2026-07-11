@@ -18,9 +18,10 @@ update-checkv6.c
 update-checkv7.c
 update-checkv8.c
 update-checkv9.c
+update-checkv9a.c
+update-checkv9b.c
 update-checkv9c.c
 update-checkv11.c
-update-checkv10.c
 bogartpkg
 bogartpkgv2
 bogartpkgv4
