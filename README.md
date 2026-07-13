@@ -1,14 +1,68 @@
 # Bogart Linux Package Manager
 
-A complete package management ecosystem for Bogart Linux. A custom
+A source-based package management ecosystem for Bogart Linux. A custom
 LFS/BLFS-based rolling Linux distribution built entirely from source.
 Includes a source-based package builder, a version tracker for 459
 packages, and a bidirectional dependency graph tool built in C.
 
+## Architecture
+
+bogartpkg
+    │
+    │  install <pkg>
+    │  1. download source (3-URL fallback)
+    │  2. extract + build (autotools/cmake/meson/cargo/custom)
+    │  3. porg install (file tracking)
+    │  4. rollback on failure
+    │
+    ▼
+porg database (/var/lib/porg/)
+    │
+    │  bogartgraph --rescan <pkg>
+    │
+    ▼
+ELF dependency cache (/var/cache/bogartpkg-graph.db)
+    │  PROVIDES: pkg → libfoo.so.1
+    │  NEEDS:    pkg → libbar.so.2
+    │
+    ├─────────────────────────────────────────┐
+    │                                         │
+    │  bogartgraph --rdeps <pkg>              │  bogartgraph --cascade <pkg>
+    │  direct reverse dependents              │  full topo-sorted rebuild order
+    │                                         │
+    └─────────────────┬───────────────────────┘
+                      │
+                      ▼
+            bogartpkg cascade <pkg>
+                      │
+                      │  rebuild all dependents in order
+                      │  report failures without aborting
+                      │
+                      ▼
+                check-updates
+                      │
+                      ├── Arch Linux API
+                      │     371 packages, x86_64 filter
+                      │
+                      ├── GitHub releases API
+                      │     latest non-prerelease tag
+                      │
+                      ├── GitHub tags API
+                      │     with optional prefix filter (e.g. v6.)
+                      │
+                      └── GitHub refs/tags API
+                            highest semver tag with prefix (e.g. go1.)
+                      │
+                      │  parallel fetch (libcurl multi, PARALLEL=3)
+                      │
+                      ▼
+                outdated report
+                  Arch | Hyprland | BLFS
+
 
 ## check-updates
 Version tracker for 459 packages across Arch Linux API, GitHub releases, 
-GitLab, and BLFS sources. Written in C with libcurl for parallel fetching.
+and BLFS sources. Written in C with libcurl for parallel fetching.
 
 Stable: main.c catalog.c parse.c
 
