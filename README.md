@@ -7,57 +7,24 @@ packages, and a bidirectional dependency graph tool built in C.
 
 ## Architecture
 ```
-bogartpkg
-    │
-    │  install <pkg>
-    │  1. download source (3-URL fallback)
-    │  2. extract + build (autotools/cmake/meson/cargo/custom)
-    │  3. porg install (file tracking)
-    │  4. rollback on failure
-    │
+bogartpkg install <pkg>
+    │  download (3-URL fallback) → build (autotools/cmake/meson/cargo/custom) → porg install → rollback on failure
     ▼
 porg database (/var/lib/porg/)
-    │
     │  bogartgraph --rescan <pkg>
-    │
     ▼
 ELF dependency cache (/var/cache/bogartpkg-graph.db)
-    │  PROVIDES: pkg → libfoo.so.1
-    │  NEEDS:    pkg → libbar.so.2
-    │
-    ├─────────────────────────────────────────┐
-    │                                         │
-    │  bogartgraph --rdeps <pkg>              │  bogartgraph --cascade <pkg>
-    │  direct reverse dependents              │  full topo-sorted rebuild order
-    │                                         │
-    └─────────────────┬───────────────────────┘
-                      │
-                      ▼
-            bogartpkg cascade <pkg>
-                      │
-                      │  rebuild all dependents in order
-                      │  report failures without aborting
-                      │
-                      ▼
-                check-updates
-                      │
-                      ├── Arch Linux API
-                      │     371 packages
-                      │
-                      ├── GitHub releases API
-                      │     latest non-prerelease tag
-                      │
-                      ├── GitHub tags API
-                      │     with optional prefix filter (e.g. v6.)
-                      │
-                      └── GitHub refs/tags API
-                            highest semver tag with prefix (e.g. go1.)
-                      │
-                      │  parallel fetch (libcurl multi, PARALLEL=3)
-                      │
-                      ▼
-                outdated report
-                  Arch | Hyprland | BLFS
+    │  bogartgraph --rdeps / --cascade
+    ▼
+bogartpkg cascade <pkg>
+    │  rebuild dependents in topo-sorted order, report failures without aborting
+    ▼
+check-updates
+    │  Arch Linux API (371 packages)
+    │  GitHub releases / tags / refs/tags (Hyprland + BLFS)
+    │  parallel fetch via libcurl multi (PARALLEL=3)
+    ▼
+outdated report — Arch | Hyprland | BLFS
 ```
 
 ## check-updates
