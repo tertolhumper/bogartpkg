@@ -45,6 +45,7 @@ topo-sorted cascade order, and Graphviz dot output.
 Compilation 
 
 ```
-gcc -o bogartgraph bogartgraph.c
-install -m 755 bogartgraph /usr/sbin/bogartgraph
+cd bogartgraph
+make
+make install
 ```
