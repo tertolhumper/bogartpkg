@@ -70,3 +70,10 @@ cd bogartgraph
 make
 make install
 ```
+
+##Current Limitations
+- Source builds only
+- No binary repository
+- No package signatures yet
+- Package definitions maintained manually
+
