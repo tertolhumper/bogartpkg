@@ -42,7 +42,7 @@ ELF dependency cache (/var/cache/bogartpkg-graph.db)
                 check-updates
                       │
                       ├── Arch Linux API
-                      │     371 packages, x86_64 filter
+                      │     371 packages
                       │
                       ├── GitHub releases API
                       │     latest non-prerelease tag
