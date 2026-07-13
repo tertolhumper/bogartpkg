@@ -6,7 +6,7 @@ Includes a source-based package builder, a version tracker for 459
 packages, and a bidirectional dependency graph tool built in C.
 
 ## Architecture
-
+```
 bogartpkg
     │
     │  install <pkg>
@@ -58,7 +58,7 @@ ELF dependency cache (/var/cache/bogartpkg-graph.db)
                       ▼
                 outdated report
                   Arch | Hyprland | BLFS
-
+```
 
 ## check-updates
 Version tracker for 459 packages across Arch Linux API, GitHub releases, 
