@@ -5,27 +5,58 @@ LFS/BLFS-based rolling Linux distribution built entirely from source.
 Includes a source-based package builder, a version tracker for 459
 packages, and a bidirectional dependency graph tool built in C.
 
+## Features
+
+- Source-based package builder
+- Automatic build system detection
+- ELF dependency graph generation
+- Reverse dependency lookup
+- Topological cascade rebuilds
+- Parallel upstream version checking
+- Rollback on installation failure
+- File tracking via porg
+
 ## Architecture
 ```
 bogartpkg install <pkg>
-    │  download (3-URL fallback) → build (autotools/cmake/meson/cargo/custom) → porg install → rollback on failure
+    │
+    │  download (3-URL fallback)
+    │  build (Autotools / CMake / Meson / Cargo / Custom)
+    │  porg install
+    │  rollback on failure
     ▼
 porg database (/var/lib/porg/)
+    │
     │  bogartgraph --rescan <pkg>
     ▼
 ELF dependency cache (/var/cache/bogartpkg-graph.db)
-    │  bogartgraph --rdeps / --cascade
+    │
+    │  PROVIDES → libfoo.so
+    │  NEEDS    → libbar.so
+    │
+    │  bogartgraph --rdeps
+    │  bogartgraph --cascade
     ▼
 bogartpkg cascade <pkg>
-    │  rebuild dependents in topo-sorted order, report failures without aborting
+    │
+    │  rebuild dependents in topological order
+    │  continue on failures and report summary
     ▼
 check-updates
+    │
     │  Arch Linux API (371 packages)
-    │  GitHub releases / tags / refs/tags (Hyprland + BLFS)
+    │  GitHub Releases / Tags / Refs
+    │  Hyprland + BLFS sources
     │  parallel fetch via libcurl multi (PARALLEL=3)
     ▼
-outdated report — Arch | Hyprland | BLFS
+Outdated package report
+    Arch | Hyprland | BLFS
 ```
+## Requirements
+
+- Linux From Scratch (LFS) base system
+- porg
+- libcurl
 
 ## check-updates
 Version tracker for 459 packages across Arch Linux API, GitHub releases, 
@@ -77,3 +108,11 @@ make install
 - No package signatures yet
 - Package definitions maintained manually
 
+## Roadmap
+
+- Add Gitlab API
+- Rewrite bogartpkg in C
+- Package signature verification
+- Local binary package cache
+- Automatic build dependency resolution
+- Repository metadata generation
