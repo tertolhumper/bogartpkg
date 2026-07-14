@@ -57,6 +57,7 @@ Outdated package report
 - Linux From Scratch (LFS) base system
 - porg
 - libcurl
+- graphviz
 
 ## check-updates
 Version tracker for 459 packages across Arch Linux API, GitHub releases, 
@@ -101,18 +102,14 @@ cd bogartgraph
 make
 make install
 ```
-
-## Current Limitations
-- Source builds only
-- No binary repository
-- No package signatures yet
+## Limitations
+- Source builds only, no binary repository
+- No package signatures
 - Package definitions maintained manually
 
 ## Roadmap
-
-- Add Gitlab API
-- Rewrite bogartpkg in C
+- GitLab API support
+- bogartpkg rewrite in C
 - Package signature verification
-- Local binary package cache
-- Automatic build dependency resolution
-- Repository metadata generation
+- Binary package cache
+- Dependency Solver
