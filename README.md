@@ -2,7 +2,7 @@
 
 A source-based package management ecosystem for Bogart Linux. A custom
 LFS/BLFS-based rolling Linux distribution built entirely from source.
-Includes a source-based package builder, a version tracker for 459
+Includes a source-based package builder, a version tracker for 461
 packages, and a bidirectional dependency graph tool built in C.
 
 ## Features
@@ -44,7 +44,7 @@ bogartpkg cascade <pkg>
     ▼
 check-updates
     │
-    │  Arch Linux API (371 packages)
+    │  Arch Linux API 
     │  GitHub Releases / Tags / Refs
     │  Hyprland + BLFS sources
     │  parallel fetch via libcurl multi (PARALLEL=3)
@@ -60,7 +60,7 @@ Outdated package report
 - graphviz
 
 ## check-updates
-Version tracker for 459 packages across Arch Linux API, GitHub releases, 
+Version tracker for 461 packages across Arch Linux API, GitHub releases, 
 and BLFS sources. Written in C with libcurl for parallel fetching.
 
 Stable: main.c catalog.c parse.c
@@ -83,7 +83,7 @@ install -m 755 bogartpkgv3 /usr/sbin/bogartpkg
 
 ```
 ## bogartpkg conf 
-Total confs : 315
+Total confs : 319
 
 Directory
 ```
