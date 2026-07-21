@@ -32,6 +32,7 @@ static const BlfsSrc BLFSSRC[] = {
     {"rofi-wayland",        SRC_GITHUB,   "lbonn/rofi",                  NULL},
     {"rusty-psn",           SRC_GITHUB,   "RainbowCookie32/rusty-psn",   NULL},
     {"shadow",              SRC_GITHUB,   "shadow-maint/shadow",         NULL},
+    {"sudo",                SRC_GITHUB,   "sudo-project/sudo", 		 NULL},
     {"swww",                SRC_GITHUB,   "LGFae/swww",                  NULL},
     {"tailscale",           SRC_GITHUB,   "tailscale/tailscale",         NULL},
     {"waypaper",            SRC_GITHUB,   "anufrievroman/waypaper",      NULL},
@@ -47,6 +48,7 @@ static const BlfsSrc BLFSSRC[] = {
     {"qt5",                 SRC_SKIP,     NULL,                          NULL},
     {"xorriso",             SRC_SKIP,     NULL,                          NULL},
     {"usb-modeswitch",      SRC_SKIP,     NULL,                          NULL},
+    {"android-studio",      SRC_SKIP,     NULL, 			 NULL},
     {NULL, 0, NULL, NULL}
 };
 
@@ -172,6 +174,7 @@ static const CatEntry CATALOG[] = {
     {"tailscale",        CAT_BLFS}, {"shadow",             CAT_BLFS},
     {"bochs",            CAT_BLFS}, {"nvidia-vaapi-driver",CAT_BLFS},
     {"usb-modeswitch",   CAT_BLFS}, {"rusty-psn",          CAT_BLFS},
+    {"sudo", 		 CAT_BLFS}, {"android-studio",     CAT_BLFS},
     {NULL, 0}
 };
 
