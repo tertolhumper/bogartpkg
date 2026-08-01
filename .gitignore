@@ -41,3 +41,6 @@ sha256sums.txt
 deps.conf
 deps.conf.verified
 sources.h
+bogartlive-build.sh.save
+main.c.save
+test
