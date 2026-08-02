@@ -49,6 +49,7 @@ static const BlfsSrc BLFSSRC[] = {
     {"xorriso",             SRC_SKIP,     NULL,                          NULL},
     {"usb-modeswitch",      SRC_SKIP,     NULL,                          NULL},
     {"android-studio",      SRC_SKIP,     NULL, 			 NULL},
+    {"wazuh-agent",	    SRC_SKIP,     NULL,				 NULL},
     {NULL, 0, NULL, NULL}
 };
 
@@ -175,6 +176,7 @@ static const CatEntry CATALOG[] = {
     {"bochs",            CAT_BLFS}, {"nvidia-vaapi-driver",CAT_BLFS},
     {"usb-modeswitch",   CAT_BLFS}, {"rusty-psn",          CAT_BLFS},
     {"sudo", 		 CAT_BLFS}, {"android-studio",     CAT_BLFS},
+    {"wazuh-agent",	 CAT_BLFS},
     {NULL, 0}
 };
 
