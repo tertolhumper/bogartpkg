@@ -69,6 +69,7 @@ Compilation
 ```
 make
 make install
+install -m 755 check-updates /usr/sbin/check-updates
 ```
 
 ## bogartpkg
