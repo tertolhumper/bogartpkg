@@ -2,7 +2,7 @@
 
 A source-based package management ecosystem for Bogart Linux. A custom
 LFS/BLFS-based rolling Linux distribution built entirely from source.
-Includes a source-based package builder, a version tracker for 463
+Includes a source-based package builder, a version tracker for 470
 packages, and a bidirectional dependency graph tool built in C.
 
 ## Features
@@ -84,7 +84,7 @@ install -m 755 bogartpkgv3 /usr/sbin/bogartpkg
 
 ```
 ## bogartpkg conf 
-Total confs : 324
+Total confs : 331
 
 Directory
 ```
