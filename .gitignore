@@ -44,3 +44,8 @@ sources.h
 bogartlive-build.sh.save
 main.c.save
 test
+*.o
+check-updates
+check-updatesv*
+check-updates-asan
+test
