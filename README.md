@@ -60,7 +60,7 @@ Outdated package report
 - graphviz
 
 ## check-updates
-Version tracker for 463 packages across Arch Linux API, GitHub releases, 
+Version tracker for 470 packages across Arch Linux API, GitHub releases, 
 and BLFS sources. Written in C with libcurl for parallel fetching.
 
 Stable: main.c catalog.c parse.c
