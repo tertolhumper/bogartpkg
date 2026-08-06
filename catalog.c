@@ -36,13 +36,15 @@ static const BlfsSrc BLFSSRC[] = {
     {"swww",                SRC_GITHUB,   "LGFae/swww",                  NULL},
     {"tailscale",           SRC_GITHUB,   "tailscale/tailscale",         NULL},
     {"waypaper",            SRC_GITHUB,   "anufrievroman/waypaper",      NULL},
-    /* SRC_GHTAG */
+    {"python-chromadb",     SRC_GITHUB,   "chroma-core/chroma",          NULL},
+	/* SRC_GHTAG */
     {"ncpamixer",           SRC_GHTAG,    "fulhax/ncpamixer",            NULL},
     {"ps_mem",              SRC_GHTAG,    "pixelb/ps_mem",               NULL},
     {"qt6",                 SRC_GHTAG,    "qt/qtbase",                   "v6."},
     {"udis86",              SRC_GHTAG,    "vmt/udis86",                  NULL},
     {"porg",                SRC_GHTAG,    "drfiemost/porg",              NULL},
-    /* SRC_GHREFTAG */
+    {"python-ollama",       SRC_GHTAG,    "ollama/ollama-python",        NULL},
+	/* SRC_GHREFTAG */
     {"go",                  SRC_GHREFTAG, "golang/go",                   "go1."},
     /* SRC_SKIP */
     {"qt5",                 SRC_SKIP,     NULL,                          NULL},
@@ -175,8 +177,9 @@ static const CatEntry CATALOG[] = {
     {"tailscale",        CAT_BLFS}, {"shadow",             CAT_BLFS},
     {"bochs",            CAT_BLFS}, {"nvidia-vaapi-driver",CAT_BLFS},
     {"usb-modeswitch",   CAT_BLFS}, {"rusty-psn",          CAT_BLFS},
-    {"sudo", 		 CAT_BLFS}, {"android-studio",     CAT_BLFS},
-    {"wazuh-agent",	 CAT_BLFS},
+    {"sudo", 		     CAT_BLFS}, {"android-studio",     CAT_BLFS},
+    {"python-chromadb",  CAT_BLFS}, {"python-ollama",      CAT_BLFS},
+	{"wazuh-agent",	     CAT_BLFS},
     {NULL, 0}
 };
 
