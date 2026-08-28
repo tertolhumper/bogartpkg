@@ -1,9 +1,11 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <curl/curl.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <stdint.h>
 #include "deps.h"
 #include "catalog.h"
 #include "parse.h"
@@ -29,9 +31,22 @@ typedef struct {
     struct curl_slist *headers;
 } Pkg;
 
+#define MAX_RESPONSE_BYTES (1024U * 1024U)
+
+static int curl_setopt_ok(CURLcode rc, const char *option) {
+    if (rc != CURLE_OK) {
+        fprintf(stderr, "curl: %s failed: %s\n", option, curl_easy_strerror(rc));
+        return 0;
+    }
+    return 1;
+}
+
 static size_t wcb(void *p, size_t sz, size_t n, void *ud) {
     Buf *b = ud;
+    if (n != 0 && sz > SIZE_MAX / n) return 0;
     size_t t = sz * n;
+    if (t > MAX_RESPONSE_BYTES || b->size > MAX_RESPONSE_BYTES - t - 1)
+        return 0;
     char *tmp = realloc(b->data, b->size + t + 1);
     if (!tmp) return 0;
     b->data = tmp;
@@ -51,10 +66,51 @@ static struct curl_slist *add_auth_header(CURL *h, const char *auth_header) {
     if (auth_header[0]) {
         struct curl_slist *headers = NULL;
         headers = curl_slist_append(headers, auth_header);
-        curl_easy_setopt(h, CURLOPT_HTTPHEADER, headers);
+        if (!headers || !curl_setopt_ok(curl_easy_setopt(h, CURLOPT_HTTPHEADER, headers), "HTTPHEADER")) {
+            curl_slist_free_all(headers);
+            return NULL;
+        }
         return headers;
     }
     return NULL;
+}
+
+static int setup_handle(Pkg *pk, const char *auth_header) {
+    pk->h = curl_easy_init();
+    if (!pk->h) return 0;
+    if (!curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_URL, pk->url), "URL") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_WRITEFUNCTION, wcb), "WRITEFUNCTION") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_WRITEDATA, &pk->buf), "WRITEDATA") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_TIMEOUT, 12L), "TIMEOUT") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_CONNECTTIMEOUT, 5L), "CONNECTTIMEOUT") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_PRIVATE, pk), "PRIVATE") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_USERAGENT, USERAGENT), "USERAGENT") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_ACCEPT_ENCODING, ""), "ACCEPT_ENCODING") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_NOSIGNAL, 1L), "NOSIGNAL")) {
+        curl_easy_cleanup(pk->h);
+        pk->h = NULL;
+        return 0;
+    }
+    if (pk->src_type == SRC_GITHUB || pk->src_type == SRC_GHTAG ||
+        pk->src_type == SRC_GHREFTAG) {
+        pk->headers = add_auth_header(pk->h, auth_header);
+        if (auth_header[0] && !pk->headers) {
+            curl_easy_cleanup(pk->h);
+            pk->h = NULL;
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int retryable_http(long code) {
+    return code == 408 || code == 425 || code == 429 || code >= 500;
+}
+
+static int retryable_curl(CURLcode code) {
+    return code == CURLE_COULDNT_RESOLVE_HOST || code == CURLE_COULDNT_CONNECT ||
+           code == CURLE_OPERATION_TIMEDOUT || code == CURLE_RECV_ERROR ||
+           code == CURLE_SEND_ERROR;
 }
 
 int main(void) {
@@ -139,9 +195,11 @@ int main(void) {
         } else if (cat == CAT_TRACK) {
             pkgs[np].status   = ST_NOTFOUND;
             pkgs[np].src_type = SRC_ARCH;
+            char arch_query[MAX_LEN];
+            snprintf(arch_query, sizeof(arch_query), "%s", pkgs[np].arch);
             snprintf(pkgs[np].url, sizeof(pkgs[np].url),
                 "https://archlinux.org/packages/search/json/?name=%s",
-                pkgs[np].arch);
+                arch_query);
         } else {
             pkgs[np].status   = ST_SKIP;
             pkgs[np].src_type = SRC_SKIP;
@@ -151,11 +209,11 @@ int main(void) {
     }
     pclose(f);
 
-    int n_track = 0, n_hypr = 0, n_blfs = 0, n_blfs_total = 0, n_skip = 0;
+    int n_track = 0, n_hypr = 0, n_blfs = 0, n_skip = 0;
     for (int i = 0; i < np; i++) {
         if (pkgs[i].cat == CAT_TRACK) n_track++;
         if (pkgs[i].cat == CAT_HYPRLAND && pkgs[i].status != ST_SKIP) n_hypr++;
-        if (pkgs[i].cat == CAT_BLFS) { n_blfs_total++; if (pkgs[i].status != ST_SKIP) n_blfs++; }
+        if (pkgs[i].cat == CAT_BLFS && pkgs[i].status != ST_SKIP) n_blfs++;
         if (pkgs[i].cat == CAT_LFS || pkgs[i].cat == CAT_XORG ||
             pkgs[i].cat == CAT_TOOLCHAIN || pkgs[i].cat == CAT_NOISE) n_skip++;
     }
@@ -163,32 +221,51 @@ int main(void) {
         n_track, n_hypr, n_blfs);
     fflush(stdout);
 
-    curl_global_init(CURL_GLOBAL_ALL);
+    if (curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
+        fprintf(stderr, "curl: global initialization failed\n");
+        for (int i = 0; i < np; i++) free(pkgs[i].buf.data);
+        deps_free();
+        return 1;
+    }
     CURLM *multi = curl_multi_init();
+    if (!multi) {
+        fprintf(stderr, "curl: multi initialization failed\n");
+        curl_global_cleanup();
+        for (int i = 0; i < np; i++) free(pkgs[i].buf.data);
+        deps_free();
+        return 1;
+    }
     curl_multi_setopt(multi, CURLMOPT_MAXCONNECTS, (long)PARALLEL);
+    curl_multi_setopt(multi, CURLMOPT_MAX_TOTAL_CONNECTIONS, (long)PARALLEL);
+    curl_multi_setopt(multi, CURLMOPT_MAX_HOST_CONNECTIONS, 2L);
 
     int n_total = n_track + n_hypr + n_blfs;
     int active = 0, done = 0, next = 0;
     for (int i = 0; i < np && active < PARALLEL; i++) {
         if (pkgs[i].status == ST_SKIP) continue;
         if (pkgs[i].cat != CAT_TRACK && pkgs[i].cat != CAT_HYPRLAND && pkgs[i].cat != CAT_BLFS) continue;
-        pkgs[i].h = curl_easy_init();
-        curl_easy_setopt(pkgs[i].h, CURLOPT_URL, pkgs[i].url);
-        curl_easy_setopt(pkgs[i].h, CURLOPT_WRITEFUNCTION, wcb);
-        curl_easy_setopt(pkgs[i].h, CURLOPT_WRITEDATA, &pkgs[i].buf);
-        curl_easy_setopt(pkgs[i].h, CURLOPT_TIMEOUT, 12L);
-        curl_easy_setopt(pkgs[i].h, CURLOPT_PRIVATE, &pkgs[i]);
-        curl_easy_setopt(pkgs[i].h, CURLOPT_USERAGENT, USERAGENT);
-        if (pkgs[i].src_type == SRC_GITHUB || pkgs[i].src_type == SRC_GHTAG ||
-            pkgs[i].src_type == SRC_GHREFTAG)
-            pkgs[i].headers = add_auth_header(pkgs[i].h, auth_header);
-        curl_multi_add_handle(multi, pkgs[i].h);
+        if (!setup_handle(&pkgs[i], auth_header) ||
+            curl_multi_add_handle(multi, pkgs[i].h) != CURLM_OK) {
+            fprintf(stderr, "curl: could not queue %s\n", pkgs[i].name);
+            if (pkgs[i].h) curl_easy_cleanup(pkgs[i].h);
+            curl_slist_free_all(pkgs[i].headers);
+            pkgs[i].headers = NULL;
+            pkgs[i].h = NULL;
+            pkgs[i].status = ST_NOTFOUND;
+            done++;
+            continue;
+        }
         pkgs[i].queued = 1; active++; next = i + 1;
     }
 
     int running = 1;
     while (running || done < n_total) {
-        curl_multi_perform(multi, &running);
+        CURLMcode mrc;
+        do { mrc = curl_multi_perform(multi, &running); } while (mrc == CURLM_CALL_MULTI_PERFORM);
+        if (mrc != CURLM_OK) {
+            fprintf(stderr, "curl: multi perform failed: %s\n", curl_multi_strerror(mrc));
+            break;
+        }
         CURLMsg *msg; int ml;
         while ((msg = curl_multi_info_read(multi, &ml))) {
             if (msg->msg != CURLMSG_DONE) continue;
@@ -197,17 +274,27 @@ int main(void) {
             if (pk) {
                 long http_code = 0;
                 curl_easy_getinfo(msg->easy_handle, CURLINFO_RESPONSE_CODE, &http_code);
-                if (http_code == 429 && pk->retries < 3) {
+                if ((retryable_http(http_code) || retryable_curl(msg->data.result)) && pk->retries < 3) {
                     pk->retries++;
                     free(pk->buf.data);
                     pk->buf.data = calloc(1, 1);
+                    if (!pk->buf.data) {
+                        fprintf(stderr, "OOM while retrying %s\n", pk->name);
+                        pk->buf.size = 0;
+                        pk->retries = 3;
+                    }
                     pk->buf.size = 0;
                     curl_multi_remove_handle(multi, msg->easy_handle);
-                    usleep(2000000);
-                    curl_multi_add_handle(multi, msg->easy_handle);
-                    continue;
+                    if (pk->buf.data) {
+                        sleep((unsigned int)(1U << pk->retries));
+                        if (curl_multi_add_handle(multi, msg->easy_handle) == CURLM_OK)
+                            continue;
+                        fprintf(stderr, "curl: could not requeue %s\n", pk->name);
+                    }
                 }
-                if (pk->src_type == SRC_ARCH)
+                if (msg->data.result != CURLE_OK || http_code < 200 || http_code >= 300) {
+                    snprintf(pk->got, MAX_LEN, "NOT_FOUND");
+                } else if (pk->src_type == SRC_ARCH)
                     parse_ver(pk->buf.data, pk->got, MAX_LEN);
                 else if (pk->src_type == SRC_GHTAG)
                     parse_gh_tag_ver(pk->buf.data, pk->got, MAX_LEN,
@@ -220,7 +307,7 @@ int main(void) {
             }
             curl_multi_remove_handle(multi, msg->easy_handle);
             curl_easy_cleanup(msg->easy_handle);
-            if (pk->headers) {
+            if (pk && pk->headers) {
                 curl_slist_free_all(pk->headers);
                 pk->headers = NULL;
             }
@@ -236,26 +323,24 @@ int main(void) {
                 if (!pkgs[next].buf.data) { fprintf(stderr, "OOM\n"); return 1; }
                 pkgs[next].buf.size = 0;
                 pkgs[next].headers  = NULL;
-                pkgs[next].h = curl_easy_init();
-                curl_easy_setopt(pkgs[next].h, CURLOPT_URL, pkgs[next].url);
-                curl_easy_setopt(pkgs[next].h, CURLOPT_WRITEFUNCTION, wcb);
-                curl_easy_setopt(pkgs[next].h, CURLOPT_WRITEDATA, &pkgs[next].buf);
-                curl_easy_setopt(pkgs[next].h, CURLOPT_TIMEOUT, 12L);
-                curl_easy_setopt(pkgs[next].h, CURLOPT_PRIVATE, &pkgs[next]);
-                curl_easy_setopt(pkgs[next].h, CURLOPT_USERAGENT, USERAGENT);
-                if (pkgs[next].src_type == SRC_GITHUB || pkgs[next].src_type == SRC_GHTAG ||
-                    pkgs[next].src_type == SRC_GHREFTAG)
-                    pkgs[next].headers = add_auth_header(pkgs[next].h, auth_header);
-                curl_multi_add_handle(multi, pkgs[next].h);
+                if (!setup_handle(&pkgs[next], auth_header) ||
+                    curl_multi_add_handle(multi, pkgs[next].h) != CURLM_OK) {
+                    fprintf(stderr, "curl: could not queue %s\n", pkgs[next].name);
+                    if (pkgs[next].h) curl_easy_cleanup(pkgs[next].h);
+                    curl_slist_free_all(pkgs[next].headers);
+                    pkgs[next].headers = NULL;
+                    pkgs[next].h = NULL;
+                    pkgs[next].status = ST_NOTFOUND;
+                    done++;
+                    next++;
+                    continue;
+                }
                 pkgs[next].queued = 1; active++; next++; break;
             }
         }
         if (running) {
-            struct timeval tv = {0, 50000};
-            fd_set r, w, e; int mx = -1;
-            FD_ZERO(&r); FD_ZERO(&w); FD_ZERO(&e);
-            curl_multi_fdset(multi, &r, &w, &e, &mx);
-            if (mx >= 0) select(mx + 1, &r, &w, &e, &tv);
+            int numfds = 0;
+            curl_multi_wait(multi, NULL, 0, 50, &numfds);
         }
     }
     printf("\r" GREEN "Complete! (%d packages)\n\n" NC, n_total);

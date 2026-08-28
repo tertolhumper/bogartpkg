@@ -5,6 +5,22 @@
 #include <sys/stat.h>
 #include "scan.h"
 
+static int shell_quote(char *out, size_t outlen, const char *value) {
+    size_t used = 0;
+    if (outlen < 3) return 0;
+    out[used++] = '\'';
+    for (const char *p = value; *p; p++) {
+        if (used + (*p == '\'' ? 4U : 1U) >= outlen) return 0;
+        if (*p == '\'') {
+            out[used++] = '\''; out[used++] = '\\';
+            out[used++] = '\''; out[used++] = '\'';
+        } else out[used++] = *p;
+    }
+    if (used + 2 > outlen) return 0;
+    out[used++] = '\''; out[used] = '\0';
+    return 1;
+}
+
 void strip_version(const char *porg_name, char *out, int outlen) {
     strncpy(out, porg_name, outlen - 1);
     out[outlen - 1] = '\0';
@@ -19,7 +35,9 @@ void strip_version(const char *porg_name, char *out, int outlen) {
 void filelist_add(FileList *fl, const char *path) {
     if (fl->count >= fl->cap) {
         fl->cap   = fl->cap ? fl->cap * 2 : 256;
-        fl->files = realloc(fl->files, fl->cap * sizeof(char *));
+        char **files = realloc(fl->files, (size_t)fl->cap * sizeof(*files));
+        if (!files) return;
+        fl->files = files;
     }
     fl->files[fl->count++] = strdup(path);
 }
@@ -31,8 +49,10 @@ void filelist_free(FileList *fl) {
 }
 
 int filelist_from_porg(const char *porg_name, FileList *fl) {
+    char quoted[MAX_PKGNAME * 2 + 3];
     char cmd[MAX_PKGNAME * 2 + 32];
-    snprintf(cmd, sizeof(cmd), "porg -f '%s' 2>/dev/null", porg_name);
+    if (!shell_quote(quoted, sizeof(quoted), porg_name)) return -1;
+    snprintf(cmd, sizeof(cmd), "porg -f %s 2>/dev/null", quoted);
     FILE *fp = popen(cmd, "r");
     if (!fp) return -1;
 
@@ -73,13 +93,16 @@ void readelf_scan(const char *path,
     *needed_out   = NULL;
     *needed_count = 0;
 
-    char cmd[MAX_LINE];
-    snprintf(cmd, sizeof(cmd), "readelf -d '%s' 2>/dev/null", path);
+    char quoted[MAX_LINE];
+    char cmd[MAX_LINE * 2 + 32];
+    if (!shell_quote(quoted, sizeof(quoted), path)) return;
+    snprintf(cmd, sizeof(cmd), "readelf -d %s 2>/dev/null", quoted);
     FILE *fp = popen(cmd, "r");
     if (!fp) return;
 
     int    needed_cap = 32;
-    char **needed     = malloc(needed_cap * sizeof(char *));
+    char **needed     = malloc((size_t)needed_cap * sizeof(*needed));
+    if (!needed) { pclose(fp); return; }
 
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), fp)) {
@@ -113,7 +136,9 @@ void readelf_scan(const char *path,
         } else {
             if (*needed_count >= needed_cap) {
                 needed_cap *= 2;
-                needed      = realloc(needed, needed_cap * sizeof(char *));
+                char **grown = realloc(needed, (size_t)needed_cap * sizeof(*grown));
+                if (!grown) break;
+                needed = grown;
             }
             needed[(*needed_count)++] = strdup(value);
         }

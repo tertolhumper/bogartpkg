@@ -5,6 +5,11 @@
 #include "catalog.h"
 #include "parse.h"
 
+static void copy_out(char *out, size_t outlen, const char *value) {
+    if (!out || outlen == 0) return;
+    snprintf(out, outlen, "%.*s", (int)(outlen - 1), value);
+}
+
 void split_porg(const char *entry, char *name, char *ver, size_t len) {
     name[0] = ver[0] = '\0';
     const char *us = strchr(entry, '_');
@@ -65,11 +70,12 @@ void split_porg(const char *entry, char *name, char *ver, size_t len) {
 }
 
 void parse_ver(const char *json, char *out, size_t outlen) {
+    if (!json || !out || outlen == 0) return;
     out[0] = '\0';
     const char *results = strstr(json, "\"results\"");
-    if (!results) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
+    if (!results) { copy_out(out, outlen, "NOT_FOUND"); return; }
     const char *arr = strchr(results, '[');
-    if (!arr) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
+    if (!arr) { copy_out(out, outlen, "NOT_FOUND"); return; }
     char best_ver[MAX_LEN] = ""; int found_x86 = 0;
     const char *p = arr + 1;
     while (*p && *p != ']') {
@@ -95,15 +101,16 @@ void parse_ver(const char *json, char *out, size_t outlen) {
             if (ae) { size_t l = ae - at; if (l >= MAX_LEN) l = MAX_LEN - 1;
                 snprintf(arc, MAX_LEN, "%.*s", (int)(l), at); arc[l] = '\0'; }}}}
         if (ver[0]) {
-            if (!strcmp(arc, "x86_64")) { snprintf(best_ver, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), ver); found_x86 = 1; break; }
+            if (!strcmp(arc, "x86_64")) { snprintf(best_ver, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), ver); break; }
             else if (!found_x86 && !best_ver[0]) snprintf(best_ver, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), ver);
         }
         p = oe;
     }
-    snprintf(out, MAX_LEN, "%.*s", (int)(outlen), best_ver[0] ? best_ver : "NOT_FOUND");
+    copy_out(out, outlen, best_ver[0] ? best_ver : "NOT_FOUND");
 }
 
 void parse_gh_ver(const char *json, char *out, size_t outlen) {
+    if (!json || !out || outlen == 0) return;
     out[0] = '\0';
     const char *pr = strstr(json, "\"prerelease\"");
     if (pr) {
@@ -111,31 +118,32 @@ void parse_gh_ver(const char *json, char *out, size_t outlen) {
         if (colon) {
             while (*colon == ':' || *colon == ' ') colon++;
             if (strncmp(colon, "true", 4) == 0) {
-                snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND");
+                copy_out(out, outlen, "NOT_FOUND");
                 return;
             }
         }
     }
     const char *t = strstr(json, "\"tag_name\"");
-    if (!t) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
+    if (!t) { copy_out(out, outlen, "NOT_FOUND"); return; }
     t = strchr(t, ':');
-    if (!t) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
+    if (!t) { copy_out(out, outlen, "NOT_FOUND"); return; }
     t = strchr(t, '"');
-    if (!t) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
+    if (!t) { copy_out(out, outlen, "NOT_FOUND"); return; }
     t++;
     const char *e = strchr(t, '"');
-    if (!e) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
+    if (!e) { copy_out(out, outlen, "NOT_FOUND"); return; }
     size_t l = e - t;
     if (l >= outlen) l = outlen - 1;
-    snprintf(out, MAX_LEN, "%.*s", (int)(l), t);
+    if (outlen > 0) snprintf(out, outlen, "%.*s", (int)(l < outlen - 1 ? l : outlen - 1), t);
     out[l] = '\0';
     if (out[0] == 'v') memmove(out, out + 1, strlen(out));
 }
 
 void parse_gh_tag_ver(const char *json, char *out, size_t outlen, const char *prefix) {
+    if (!json || !out || outlen == 0) return;
     out[0] = '\0';
     const char *arr = strchr(json, '[');
-    if (!arr) { snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND"); return; }
+    if (!arr) { copy_out(out, outlen, "NOT_FOUND"); return; }
     const char *p = arr + 1;
     while (*p && *p != ']') {
         const char *t = strstr(p, "\"name\"");
@@ -153,16 +161,17 @@ void parse_gh_tag_ver(const char *json, char *out, size_t outlen, const char *pr
         snprintf(candidate, MAX_LEN, "%.*s", (int)(l), t);
         candidate[l] = '\0';
         if (!prefix || strncmp(candidate, prefix, strlen(prefix)) == 0) {
-            snprintf(out, MAX_LEN, "%.*s", (int)(outlen - 1), candidate);
+            copy_out(out, outlen, candidate);
             if (out[0] == 'v') memmove(out, out + 1, strlen(out));
             return;
         }
         p = e + 1;
     }
-    snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND");
+    copy_out(out, outlen, "NOT_FOUND");
 }
 
 void parse_gh_reftag_ver(const char *json, char *out, size_t outlen, const char *prefix) {
+    if (!json || !out || outlen == 0) return;
     out[0] = '\0';
     char best[MAX_LEN] = "";
     const char *p = json;
@@ -188,14 +197,15 @@ void parse_gh_reftag_ver(const char *json, char *out, size_t outlen, const char 
         p = e + 1;
     }
     if (best[0]) {
-        snprintf(out, MAX_LEN, "%.*s", (int)(outlen - 1), best);
+        copy_out(out, outlen, best);
         out[outlen - 1] = '\0';
     } else {
-        snprintf(out, MAX_LEN, "%.*s", (int)(outlen), "NOT_FOUND");
+        copy_out(out, outlen, "NOT_FOUND");
     }
 }
 
 void ver_clean(const char *in, char *out, size_t n) {
+    if (!out || n == 0) return;
     snprintf(out, MAX_LEN, "%.*s", (int)(n - 1), in); out[n - 1] = '\0';
     if (strncmp(out, "Release_", 8) == 0) {
         memmove(out, out + 8, strlen(out) - 7);

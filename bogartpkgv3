@@ -5,6 +5,7 @@ export PATH="$PATH:/usr/local/go/bin"
 export CMAKE_PREFIX_PATH="/opt/qt6:/opt/qt5"
 # /usr/local/bin/bogartpkg
 set -euo pipefail
+umask 077
 # Configuration
 PKGDIR="/etc/bogartpkg/packages.d"
 BUILDROOT="/var/tmp/bogartpkg"
@@ -39,6 +40,7 @@ log_action() {
 
 load_pkg() {
     local pkg="$1"
+    [[ "$pkg" =~ ^[A-Za-z0-9][A-Za-z0-9+._-]*$ ]] || die "Invalid package name: '$pkg'"
     local conf="$PKGDIR/${pkg}.conf"
     [ -f "$conf" ] || die "No package definition for '$pkg' (looked in $PKGDIR)"
     # Reset all vars before sourcing
@@ -96,7 +98,8 @@ build_autotools() {
     
     run ./configure --prefix="${PKG_PREFIX:-/usr}" ${PKG_OPTS}
     run make -j"$(nproc)"
-    local s="/tmp/bogartpkg-inst-$$.sh"
+    local s
+    s=$(mktemp /tmp/bogartpkg-inst.XXXXXX) || die "Cannot create install script"
     printf '#!/bin/sh\ncd %s\nmake install\n' "$builddir" > "$s"; chmod +x "$s"
     porg -lp "${PKG_NAME}-${PKG_VER}" "$s"; rm -f "$s"
 }
@@ -109,7 +112,8 @@ build_cmake() {
         -DBUILD_TESTING=OFF \
         ${PKG_CMAKE_OPTS}
     run cmake --build build --parallel "${PKG_JOBS:-$(nproc)}"
-    local s="/tmp/bogartpkg-inst-$$.sh"
+    local s
+    s=$(mktemp /tmp/bogartpkg-inst.XXXXXX) || die "Cannot create install script"
     printf '#!/bin/sh\ncd %s\ncmake --install build\n' "$builddir" > "$s"; chmod +x "$s"
     porg -lp "${PKG_NAME}-${PKG_VER}" "$s"; rm -f "$s"
 }
@@ -121,7 +125,8 @@ build_meson() {
         --buildtype=release \
         ${PKG_MESON_OPTS}
     run ninja -C build -j"$(nproc)"
-    local s="/tmp/bogartpkg-inst-$$.sh"
+    local s
+    s=$(mktemp /tmp/bogartpkg-inst.XXXXXX) || die "Cannot create install script"
     printf '#!/bin/sh\ncd %s\nninja -C build install\n' "$builddir" > "$s"; chmod +x "$s"
     porg -lp "${PKG_NAME}-${PKG_VER}" "$s"; rm -f "$s"
 }
@@ -130,7 +135,8 @@ build_cargo() {
     
     run cargo build --release ${PKG_CARGO_OPTS}
     local prefix="${PKG_PREFIX:-/usr}"
-    local s="/tmp/bogartpkg-inst-$$.sh"
+    local s
+    s=$(mktemp /tmp/bogartpkg-inst.XXXXXX) || die "Cannot create install script"
     echo "#!/bin/sh" > "$s"
     echo "cargo install --path . --root $prefix --no-track" >> "$s"
     chmod +x "$s"
@@ -144,7 +150,8 @@ build_custom() {
     cd "$builddir"
     eval "$PKG_CUSTOM_BUILD" || return 1
     # Write install to a temp script so porg can wrap it cleanly
-    local install_script="/tmp/bogartpkg-install-$$.sh"
+    local install_script
+    install_script=$(mktemp /tmp/bogartpkg-install.XXXXXX) || return 1
     cat > "$install_script" << INSTALL_EOF
 #!/bin/sh
 cd '$builddir'
@@ -335,7 +342,7 @@ cmd_install() {
     [ -z "$DRYRUN" ] && log_action "INSTALL ${PKG_NAME}-${PKG_VER}"
 }
 cmd_remove() {
-    local pkg="$1"
+    local pkg="${1:-}"
     [ -n "$pkg" ] || die "Usage: bogartpkg remove <pkg>"
     require_root
     load_pkg "$pkg"
@@ -345,7 +352,7 @@ cmd_remove() {
     log_action "REMOVE ${PKG_NAME}-${PKG_VER}"
 }
 cmd_info() {
-    local pkg="$1"
+    local pkg="${1:-}"
     [ -n "$pkg" ] || die "Usage: bogartpkg info <pkg>"
     load_pkg "$pkg"
     printf "%-16s %s\n" "Name:"    "$PKG_NAME"

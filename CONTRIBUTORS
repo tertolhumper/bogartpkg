@@ -1,0 +1,10 @@
+# Contributors
+
+## Author
+tertolhumper — created and maintains the project
+
+## Code Reviews & Patches
+Due-Celery4326 — reviewed the codebase and submitted a patch (August 28, 2026) fixing
+shell quoting vulnerabilities in bogartgraph, response buffer overflow in the curl
+handler, non-atomic graph.db writes, and improved retry logic with exponential
+backoff for transport errors.

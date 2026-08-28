@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "deps.h"
 
 #include <stdio.h>
@@ -20,6 +21,7 @@ static char *xstrdup(const char *s) {
 
 static char *trim(char *s) {
     while (isspace((unsigned char)*s)) s++;
+    if (!*s) return s;
     char *end = s + strlen(s) - 1;
     while (end >= s && isspace((unsigned char)*end)) *end-- = '\0';
     return s;

@@ -14,5 +14,8 @@ $(TARGET): $(OBJS)
 install: $(TARGET)
 	install -m755 $(TARGET) /usr/sbin/check-updates
 
+patch:
+	patch -p1 < due-celery4326.patch
+
 clean:
 	rm -f $(OBJS) $(TARGET)
