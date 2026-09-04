@@ -84,7 +84,7 @@ install -m 755 bogartpkgv3 /usr/sbin/bogartpkg
 
 ```
 ## bogartpkg conf 
-Total confs : 363
+Total confs : 364
 
 Directory
 ```
@@ -114,3 +114,4 @@ make install
 - Package signature verification
 - Binary package cache
 - Dependency Solver
+
