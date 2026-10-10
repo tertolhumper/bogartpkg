@@ -3,7 +3,7 @@
 
 #define MAX_PACKAGES 512
 #define MAX_LEN      256
-#define PARALLEL     2
+#define PARALLEL     1
 #define USERAGENT    "BogartLinux-check-updates/10.0"
 
 #define RED     "\033[0;31m"
