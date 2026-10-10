@@ -2,23 +2,23 @@
 #include "catalog.h"
 
 static const BlfsSrc BLFSSRC[] = {
-    /* SRC_ARCH */
-    {"asciidoc",            SRC_ARCH,     NULL,                          NULL},
-    {"cython",              SRC_ARCH,     NULL,                          NULL},
-    {"docutils",            SRC_ARCH,     "python-docutils",             NULL},
-    {"intltool",            SRC_ARCH,     NULL,                          NULL},
-    {"itstool",             SRC_ARCH,     NULL,                          NULL},
-    {"libapparmor",         SRC_ARCH,     "apparmor",                    NULL},
-    {"linux-pam",           SRC_ARCH,     "pam",                         NULL},
-    {"nasm",                SRC_ARCH,     NULL,                          NULL},
-    {"nghttp2",             SRC_ARCH,     "libnghttp2",                  NULL},
-    {"pyyaml",              SRC_ARCH,     "python-yaml",                 NULL},
-    {"scdoc",               SRC_ARCH,     NULL,                          NULL},
-    {"swig",                SRC_ARCH,     NULL,                          NULL},
-    {"virglrenderer",       SRC_ARCH,     NULL,                          NULL},
-    {"xml-parser",          SRC_ARCH,     "perl-xml-parser",             NULL},
-    {"yaml-cpp",            SRC_ARCH,     NULL,                          NULL},
-    {"yasm",                SRC_ARCH,     NULL,                          NULL},
+    /* SRC_ARCHGIT */
+    {"asciidoc",            SRC_ARCHGIT,     NULL,                          NULL},
+    {"cython",              SRC_ARCHGIT,     NULL,                          NULL},
+    {"docutils",            SRC_ARCHGIT,     "python-docutils",             NULL},
+    {"intltool",            SRC_ARCHGIT,     NULL,                          NULL},
+    {"itstool",             SRC_ARCHGIT,     NULL,                          NULL},
+    {"libapparmor",         SRC_ARCHGIT,     "apparmor",                    NULL},
+    {"linux-pam",           SRC_ARCHGIT,     "pam",                         NULL},
+    {"nasm",                SRC_ARCHGIT,     NULL,                          NULL},
+    {"nghttp2",             SRC_ARCHGIT,     "libnghttp2",                  NULL},
+    {"pyyaml",              SRC_ARCHGIT,     "python-yaml",                 NULL},
+    {"scdoc",               SRC_ARCHGIT,     NULL,                          NULL},
+    {"swig",                SRC_ARCHGIT,     NULL,                          NULL},
+    {"virglrenderer",       SRC_ARCHGIT,     NULL,                          NULL},
+    {"xml-parser",          SRC_ARCHGIT,     "perl-xml-parser",             NULL},
+    {"yaml-cpp",            SRC_ARCHGIT,     NULL,                          NULL},
+    {"yasm",                SRC_ARCHGIT,     NULL,                          NULL},
     /* SRC_GITHUB */
     {"agg",                 SRC_GITHUB,   "asciinema/agg",               NULL},
     {"bochs",               SRC_GITHUB,   "bochs-emu/Bochs",             NULL},
@@ -48,6 +48,7 @@ static const BlfsSrc BLFSSRC[] = {
     {"go",                  SRC_GHREFTAG, "golang/go",                   "go1."},
     /* SRC_SKIP */
     {"qt5",                 SRC_SKIP,     NULL,                          NULL},
+    {"qrcodegencpp",        SRC_SKIP,     NULL,                          NULL},
     {"xorriso",             SRC_SKIP,     NULL,                          NULL},
     {"usb-modeswitch",      SRC_SKIP,     NULL,                          NULL},
     {"android-studio",      SRC_SKIP,     NULL, 			 NULL},
@@ -89,20 +90,15 @@ static const Map ARCHMAP[] = {
     {"linux-pam",        "pam"},
     {"xwayland",         "xorg-xwayland"},
     {"wlroots",          "wlroots0.19"},
-    {"pulseaudio",       "libpulse"},
     {"libsoup",          "libsoup3"},
     {"libostree",        "ostree"},
-    {"gst-plugins-bad",  "gst-plugins-bad-libs"},
     {"libaom",           "aom"},
     {"yaml",             "libyaml"},
     {"abseil-cpp",       "abseil-cpp"},
     {"libtasn1",         "libtasn1"},
     {"clangd",           "clang"},
     {"openjpeg",         "openjpeg2"},
-    {"qrcodegencpp",     "qrcodegencpp-cmake"},
     {"noto-cjk",         "noto-fonts-cjk"},
-    {"qemu",             "qemu-system-x86"},
-    {"pygobject",        "python-gobject"},
     {"fdk-aac",          "libfdk-aac"},
     {"x265",             "x265"},
     {"inih",             "libinih"},
@@ -113,6 +109,9 @@ static const Map ARCHMAP[] = {
     {"packaging",        "python-packaging"},
     {"setuptools",       "python-setuptools"},
     {"wheel",            "python-wheel"},
+    {"libelf",           "elfutils"},
+    {"zabbix-agent",     "zabbix"},
+    {"gst-plugins-bad",  "gstreamer"},
     {NULL, NULL}
 };
 
@@ -179,6 +178,7 @@ static const CatEntry CATALOG[] = {
     {"usb-modeswitch",   CAT_BLFS}, {"rusty-psn",          CAT_BLFS},
     {"sudo", 		     CAT_BLFS}, {"android-studio",     CAT_BLFS},
     {"python-chromadb",  CAT_BLFS}, {"python-ollama",      CAT_BLFS},
+    {"qrcodegencpp",     CAT_BLFS},
 	{"wazuh-agent",	     CAT_BLFS},
     {NULL, 0}
 };

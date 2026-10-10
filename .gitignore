@@ -49,3 +49,9 @@ check-updates
 check-updatesv*
 check-updates-asan
 test
+catalog.c.bak
+fail.log
+fix-catalog.sh
+main.c.bak
+main.c.bak2
+main.c.bak3

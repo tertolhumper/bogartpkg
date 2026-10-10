@@ -3,7 +3,7 @@
 
 #define MAX_PACKAGES 512
 #define MAX_LEN      256
-#define PARALLEL     3
+#define PARALLEL     2
 #define USERAGENT    "BogartLinux-check-updates/10.0"
 
 #define RED     "\033[0;31m"
@@ -33,6 +33,7 @@ typedef enum {
     SRC_GITLAB    = 3,
     SRC_SKIP      = 4,
     SRC_GHREFTAG  = 5,
+    SRC_ARCHGIT   = 6,
 } SrcType;
 
 typedef struct {

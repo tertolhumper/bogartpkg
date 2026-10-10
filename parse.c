@@ -253,3 +253,40 @@ int ver_cmp(const char *a, const char *b) {
     }
     return 0;
 }
+
+void parse_archgit_ver(const char *json, char *out, size_t outlen) {
+    if (!json || !out || outlen == 0) return;
+    out[0] = '\0';
+    const char *t = strstr(json, "\"name\"");
+    if (!t) { copy_out(out, outlen, "NOT_FOUND"); return; }
+    t = strchr(t, ':');
+    if (!t) { copy_out(out, outlen, "NOT_FOUND"); return; }
+    t = strchr(t, '"');
+    if (!t) { copy_out(out, outlen, "NOT_FOUND"); return; }
+    t++;
+    const char *e = strchr(t, '"');
+    if (!e) { copy_out(out, outlen, "NOT_FOUND"); return; }
+    char tag[MAX_LEN];
+    size_t l = e - t;
+    if (l >= MAX_LEN) l = MAX_LEN - 1;
+    snprintf(tag, MAX_LEN, "%.*s", (int)l, t);
+    tag[l] = '\0';
+    /* Strip epoch: if first segment before '-' is all digits, skip it */
+    char *p = tag;
+    char *first_dash = strchr(p, '-');
+    if (first_dash) {
+        int all_dig = 1;
+        for (char *c = p; c < first_dash; c++)
+            if (!isdigit((unsigned char)*c)) { all_dig = 0; break; }
+        if (all_dig) p = first_dash + 1;
+    }
+    /* Strip pkgrel: remove trailing -N */
+    char *last_dash = strrchr(p, '-');
+    if (last_dash) {
+        int all_dig = 1;
+        for (char *c = last_dash + 1; *c; c++)
+            if (!isdigit((unsigned char)*c)) { all_dig = 0; break; }
+        if (all_dig && *(last_dash + 1)) *last_dash = '\0';
+    }
+    copy_out(out, outlen, p[0] ? p : "NOT_FOUND");
+}

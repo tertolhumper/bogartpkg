@@ -81,8 +81,10 @@ static int setup_handle(Pkg *pk, const char *auth_header) {
     if (!curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_URL, pk->url), "URL") ||
         !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_WRITEFUNCTION, wcb), "WRITEFUNCTION") ||
         !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_WRITEDATA, &pk->buf), "WRITEDATA") ||
-        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_TIMEOUT, 12L), "TIMEOUT") ||
-        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_CONNECTTIMEOUT, 5L), "CONNECTTIMEOUT") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_TIMEOUT, 20L), "TIMEOUT") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_CONNECTTIMEOUT, 8L), "CONNECTTIMEOUT") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_LOW_SPEED_LIMIT, 100L), "LOW_SPEED_LIMIT") ||
+        !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_LOW_SPEED_TIME, 8L), "LOW_SPEED_TIME") ||
         !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_PRIVATE, pk), "PRIVATE") ||
         !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_USERAGENT, USERAGENT), "USERAGENT") ||
         !curl_setopt_ok(curl_easy_setopt(pk->h, CURLOPT_ACCEPT_ENCODING, ""), "ACCEPT_ENCODING") ||
@@ -103,6 +105,8 @@ static int setup_handle(Pkg *pk, const char *auth_header) {
     return 1;
 }
 
+#define MAX_RETRIES 6
+
 static int retryable_http(long code) {
     return code == 408 || code == 425 || code == 429 || code >= 500;
 }
@@ -110,7 +114,9 @@ static int retryable_http(long code) {
 static int retryable_curl(CURLcode code) {
     return code == CURLE_COULDNT_RESOLVE_HOST || code == CURLE_COULDNT_CONNECT ||
            code == CURLE_OPERATION_TIMEDOUT || code == CURLE_RECV_ERROR ||
-           code == CURLE_SEND_ERROR;
+           code == CURLE_SEND_ERROR ||
+           code == CURLE_SSL_CONNECT_ERROR || code == CURLE_GOT_NOTHING ||
+           code == CURLE_PARTIAL_FILE;
 }
 
 int main(void) {
@@ -176,11 +182,11 @@ int main(void) {
                 pkgs[np].src_type = bs->src;
                 if (bs->prefix)
                     snprintf(pkgs[np].tag_prefix, sizeof(pkgs[np].tag_prefix), "%s", bs->prefix);
-                if (bs->src == SRC_ARCH) {
+                if (bs->src == SRC_ARCHGIT) {
                     const char *apkg = bs->repo ? bs->repo : name;
                     snprintf(pkgs[np].arch, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), apkg);
                     snprintf(pkgs[np].url, sizeof(pkgs[np].url),
-                        "https://archlinux.org/packages/search/json/?name=%s", apkg);
+                        "https://gitlab.archlinux.org/api/v4/projects/archlinux%%2Fpackaging%%2Fpackages%%2F%s/repository/tags?per_page=1", apkg);
                 } else if (bs->src == SRC_GITHUB) {
                     snprintf(pkgs[np].url, sizeof(pkgs[np].url),
                         "https://api.github.com/repos/%s/releases/latest", bs->repo);
@@ -194,11 +200,11 @@ int main(void) {
             }
         } else if (cat == CAT_TRACK) {
             pkgs[np].status   = ST_NOTFOUND;
-            pkgs[np].src_type = SRC_ARCH;
+            pkgs[np].src_type = SRC_ARCHGIT;
             char arch_query[MAX_LEN];
             snprintf(arch_query, sizeof(arch_query), "%s", pkgs[np].arch);
             snprintf(pkgs[np].url, sizeof(pkgs[np].url),
-                "https://archlinux.org/packages/search/json/?name=%s",
+                "https://gitlab.archlinux.org/api/v4/projects/archlinux%%2Fpackaging%%2Fpackages%%2F%s/repository/tags?per_page=1",
                 arch_query);
         } else {
             pkgs[np].status   = ST_SKIP;
@@ -274,19 +280,19 @@ int main(void) {
             if (pk) {
                 long http_code = 0;
                 curl_easy_getinfo(msg->easy_handle, CURLINFO_RESPONSE_CODE, &http_code);
-                if ((retryable_http(http_code) || retryable_curl(msg->data.result)) && pk->retries < 3) {
+                if ((retryable_http(http_code) || retryable_curl(msg->data.result)) && pk->retries < MAX_RETRIES) {
                     pk->retries++;
                     free(pk->buf.data);
                     pk->buf.data = calloc(1, 1);
                     if (!pk->buf.data) {
                         fprintf(stderr, "OOM while retrying %s\n", pk->name);
                         pk->buf.size = 0;
-                        pk->retries = 3;
+                        pk->retries = MAX_RETRIES;
                     }
                     pk->buf.size = 0;
                     curl_multi_remove_handle(multi, msg->easy_handle);
                     if (pk->buf.data) {
-                        sleep((unsigned int)(1U << pk->retries));
+                        { unsigned int delay = 1U << (pk->retries < 5 ? pk->retries : 5); curl_off_t ra = 0; curl_easy_getinfo(msg->easy_handle, CURLINFO_RETRY_AFTER, &ra); if (ra > 0 && ra <= 120 && (unsigned int)ra > delay) delay = (unsigned int)ra; sleep(delay); }
                         if (curl_multi_add_handle(multi, msg->easy_handle) == CURLM_OK)
                             continue;
                         fprintf(stderr, "curl: could not requeue %s\n", pk->name);
@@ -294,8 +300,8 @@ int main(void) {
                 }
                 if (msg->data.result != CURLE_OK || http_code < 200 || http_code >= 300) {
                     snprintf(pk->got, MAX_LEN, "NOT_FOUND");
-                } else if (pk->src_type == SRC_ARCH)
-                    parse_ver(pk->buf.data, pk->got, MAX_LEN);
+                } else if (pk->src_type == SRC_ARCHGIT)
+                    parse_archgit_ver(pk->buf.data, pk->got, MAX_LEN);
                 else if (pk->src_type == SRC_GHTAG)
                     parse_gh_tag_ver(pk->buf.data, pk->got, MAX_LEN,
                         pk->tag_prefix[0] ? pk->tag_prefix : NULL);
@@ -428,7 +434,7 @@ int main(void) {
         if (pkgs[i].status != ST_OUTDATED || pkgs[i].cat != CAT_BLFS) continue;
         if (!bany) printf(RED "BLFS\n" NC);
         const char *src_label =
-            pkgs[i].src_type == SRC_ARCH     ? "arch"   :
+            pkgs[i].src_type == SRC_ARCHGIT   ? "arch"   :
             pkgs[i].src_type == SRC_GITHUB   ? "github" :
             pkgs[i].src_type == SRC_GHTAG    ? "github" :
             pkgs[i].src_type == SRC_GHREFTAG ? "github" :
