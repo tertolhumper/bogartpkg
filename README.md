@@ -109,7 +109,6 @@ make install
 - Package definitions maintained manually
 
 ## Roadmap
-- GitLab API support
 - bogartpkg rewrite in C
 - Package signature verification
 - Binary package cache
