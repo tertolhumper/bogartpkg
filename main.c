@@ -9,6 +9,7 @@
 #include "deps.h"
 #include "catalog.h"
 #include "parse.h"
+#include "archdb.h"
 
 typedef enum { ST_OUTDATED=0, ST_CURRENT=1, ST_AHEAD=2,
                ST_NOTFOUND=3, ST_SKIP=4 } Status;
@@ -28,6 +29,7 @@ typedef struct {
     char     tag_prefix[32];
     int      queued;
     int      retries;
+    int      resolved;
     struct curl_slist *headers;
 } Pkg;
 
@@ -60,6 +62,11 @@ static int pkg_exists(Pkg *pkgs, int n, const char *name) {
     for (int i = 0; i < n; i++)
         if (!strcmp(pkgs[i].name, name)) return 1;
     return 0;
+}
+
+static int needs_fetch(const Pkg *p) {
+    if (p->status == ST_SKIP || p->resolved) return 0;
+    return p->cat == CAT_TRACK || p->cat == CAT_HYPRLAND || p->cat == CAT_BLFS;
 }
 
 static struct curl_slist *add_auth_header(CURL *h, const char *auth_header) {
@@ -127,10 +134,11 @@ int main(void) {
     char token[256] = "";
     char auth_header[280] = "";
     if (tf) {
-        fgets(token, sizeof(token), tf);
+        if (fgets(token, sizeof(token), tf)) {
+            token[strcspn(token, "\n")] = '\0';
+            snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", token);
+        }
         fclose(tf);
-        token[strcspn(token, "\n")] = '\0';
-        snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", token);
     }
 
     static Pkg pkgs[MAX_PACKAGES];
@@ -158,6 +166,7 @@ int main(void) {
         pkgs[np].h        = NULL;
         pkgs[np].queued   = 0;
         pkgs[np].retries  = 0;
+        pkgs[np].resolved = 0;
         pkgs[np].headers  = NULL;
         pkgs[np].cat      = cat;
         pkgs[np].src_type = SRC_SKIP;
@@ -233,6 +242,27 @@ int main(void) {
         deps_free();
         return 1;
     }
+
+    /* resolve Arch-sourced packages from core.db/extra.db: 2 downloads, no per-package API */
+    int n_resolved = 0;
+    if (archdb_load() == 0) {
+        for (int i = 0; i < np; i++) {
+            if (pkgs[i].src_type != SRC_ARCHGIT || pkgs[i].status == ST_SKIP) continue;
+            const char *v = archdb_ver(pkgs[i].arch);
+            if (!v) v = archdb_ver(pkgs[i].name);
+            if (!v) continue;
+            snprintf(pkgs[i].got, MAX_LEN, "%.*s", (int)(MAX_LEN - 1), v);
+            pkgs[i].resolved = 1;
+            n_resolved++;
+        }
+        printf(CYAN "Resolved %d from Arch repo db\n" NC, n_resolved);
+    } else {
+        fprintf(stderr, "warning: Arch repo db unavailable, using GitLab API\n");
+    }
+    int n_fetch = 0;
+    for (int i = 0; i < np; i++)
+        if (needs_fetch(&pkgs[i])) n_fetch++;
+
     CURLM *multi = curl_multi_init();
     if (!multi) {
         fprintf(stderr, "curl: multi initialization failed\n");
@@ -248,8 +278,7 @@ int main(void) {
     int n_total = n_track + n_hypr + n_blfs;
     int active = 0, done = 0, next = 0;
     for (int i = 0; i < np && active < PARALLEL; i++) {
-        if (pkgs[i].status == ST_SKIP) continue;
-        if (pkgs[i].cat != CAT_TRACK && pkgs[i].cat != CAT_HYPRLAND && pkgs[i].cat != CAT_BLFS) continue;
+        if (!needs_fetch(&pkgs[i])) continue;
         if (!setup_handle(&pkgs[i], auth_header) ||
             curl_multi_add_handle(multi, pkgs[i].h) != CURLM_OK) {
             fprintf(stderr, "curl: could not queue %s\n", pkgs[i].name);
@@ -265,7 +294,7 @@ int main(void) {
     }
 
     int running = 1;
-    while (running || done < n_total) {
+    while (running || done < n_fetch) {
         CURLMcode mrc;
         do { mrc = curl_multi_perform(multi, &running); } while (mrc == CURLM_CALL_MULTI_PERFORM);
         if (mrc != CURLM_OK) {
@@ -318,11 +347,9 @@ int main(void) {
                 pk->headers = NULL;
             }
             active--; done++;
-            printf("\r" CYAN "Fetching %d/%d" NC, done, n_total); fflush(stdout);
+            printf("\r" CYAN "Fetching %d/%d" NC, done, n_fetch); fflush(stdout);
             while (next < np) {
-                if (pkgs[next].queued || pkgs[next].status == ST_SKIP ||
-                    (pkgs[next].cat != CAT_TRACK && pkgs[next].cat != CAT_HYPRLAND &&
-                     pkgs[next].cat != CAT_BLFS))
+                if (pkgs[next].queued || !needs_fetch(&pkgs[next]))
                     { next++; continue; }
                 free(pkgs[next].buf.data);
                 pkgs[next].buf.data = calloc(1, 1);
