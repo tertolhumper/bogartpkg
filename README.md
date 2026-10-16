@@ -57,7 +57,7 @@ Outdated package report
 - Linux From Scratch (LFS) base system
 - porg
 - libcurl
-- graphviz
+- graphviz (optional)
 
 ## check-updates
 Version tracker for 473 packages across Arch Linux API, GitHub releases, 
@@ -84,7 +84,7 @@ install -m 755 bogartpkgv3 /usr/sbin/bogartpkg
 
 ```
 ## bogartpkg conf 
-Total confs : 370
+Total confs : 375
 
 Directory
 ```
