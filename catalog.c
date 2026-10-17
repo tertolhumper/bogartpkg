@@ -112,6 +112,7 @@ static const Map ARCHMAP[] = {
     {"libelf",           "elfutils"},
     {"zabbix-agent",     "zabbix"},
     {"gst-plugins-bad",  "gstreamer"},
+    {"slang-bin",        "shader-slang"},
     {NULL, NULL}
 };
 
