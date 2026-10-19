@@ -24,9 +24,10 @@ update-checkv9c.c
 update-checkv10.c
 update-checkv10a.c
 update-checkv11.c
+bogartpkg.bak
 bogartpkg
 bogartpkgv2
-bogartpkgv4
+bogartpkgv3
 bogartlive-build.sh
 bpkg-edit
 bpkg-info
