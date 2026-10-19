@@ -77,10 +77,10 @@ Package builder & installer. Supports autotools, cmake, meson, cargo,
 and custom build types. Tracks installed files via porg with 3-URL
 fallback downloads and automatic dependency graph updates on install.
 
-Stable: bogartpkgv3
+Stable: bogartpkgv4
 
 ``` 
-install -m 755 bogartpkgv3 /usr/sbin/bogartpkg
+install -m 755 bogartpkgv4 /usr/sbin/bogartpkg
 
 ```
 ## bogartpkg conf 
@@ -113,4 +113,5 @@ make install
 - Package signature verification
 - Binary package cache
 - Dependency Solver
+
 
