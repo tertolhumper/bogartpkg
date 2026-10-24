@@ -84,7 +84,7 @@ install -m 755 bogartpkgv4 /usr/sbin/bogartpkg
 
 ```
 ## bogartpkg conf 
-Total confs : 376
+Total confs : 380
 
 Directory
 ```
