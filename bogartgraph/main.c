@@ -6,30 +6,130 @@
 #include "graph.h"
 #include "scan.h"
 
-static void collect_cascade(Graph *g, const char *root,
+#define VSET_SIZE (MAX_ENTRIES * 2)
+
+typedef struct {
+    char keys[VSET_SIZE][MAX_PKGNAME];
+    int  used[VSET_SIZE];
+} VSet;
+
+static void vset_init(VSet *v) {
+    memset(v->used, 0, sizeof(v->used));
+}
+
+static unsigned int vset_hash(const char *s) {
+    unsigned int h = 5381;
+    while (*s) h = h * 31 + (unsigned char)*s++;
+    return h % VSET_SIZE;
+}
+
+static int vset_contains(VSet *v, const char *key) {
+    unsigned int h = vset_hash(key);
+    unsigned int i = h;
+    do {
+        if (!v->used[i]) return 0;
+        if (strcmp(v->keys[i], key) == 0) return 1;
+        i = (i + 1) % VSET_SIZE;
+    } while (i != h);
+    return 0;
+}
+
+static void vset_insert(VSet *v, const char *key) {
+    unsigned int h = vset_hash(key);
+    unsigned int i = h;
+    do {
+        if (!v->used[i]) {
+            v->used[i] = 1;
+            strncpy(v->keys[i], key, MAX_PKGNAME - 1);
+            v->keys[i][MAX_PKGNAME - 1] = '\0';
+            return;
+        }
+        if (strcmp(v->keys[i], key) == 0) return;
+        i = (i + 1) % VSET_SIZE;
+    } while (i != h);
+}
+
+typedef struct {
+    char pkg[MAX_PKGNAME];
+    char soname[MAX_SONAME];
+} Edge;
+
+typedef struct {
+    Edge *edges;
+    int   count;
+    int   cap;
+} AdjList;
+
+static void adj_push(AdjList *a, const char *pkg, const char *soname) {
+    if (a->count >= a->cap) {
+        a->cap   = a->cap ? a->cap * 2 : 8;
+        a->edges = realloc(a->edges, a->cap * sizeof(Edge));
+    }
+    strncpy(a->edges[a->count].pkg,    pkg,    MAX_PKGNAME - 1);
+    strncpy(a->edges[a->count].soname, soname, MAX_SONAME  - 1);
+    a->edges[a->count].pkg[MAX_PKGNAME - 1]    = '\0';
+    a->edges[a->count].soname[MAX_SONAME  - 1] = '\0';
+    a->count++;
+}
+
+typedef struct {
+    char    soname[MAX_SONAME];
+    AdjList needers;
+} SonameEntry;
+
+typedef struct {
+    SonameEntry *entries;
+    int          count;
+    int          cap;
+} SonameMap;
+
+static SonameMap *somap_build(Graph *g) {
+    SonameMap *m = calloc(1, sizeof(SonameMap));
+    for (int i = 0; i < g->count; i++) {
+        GraphEntry *e = &g->entries[i];
+        if (e->type != ENTRY_NEEDS) continue;
+        int idx = -1;
+        for (int k = 0; k < m->count; k++)
+            if (strcmp(m->entries[k].soname, e->soname) == 0) { idx = k; break; }
+        if (idx < 0) {
+            if (m->count >= m->cap) {
+                m->cap     = m->cap ? m->cap * 2 : 64;
+                m->entries = realloc(m->entries, m->cap * sizeof(SonameEntry));
+            }
+            idx = m->count++;
+            strncpy(m->entries[idx].soname, e->soname, MAX_SONAME - 1);
+            m->entries[idx].soname[MAX_SONAME - 1] = '\0';
+            memset(&m->entries[idx].needers, 0, sizeof(AdjList));
+        }
+        adj_push(&m->entries[idx].needers, e->pkg, e->soname);
+    }
+    return m;
+}
+
+static void somap_free(SonameMap *m) {
+    for (int i = 0; i < m->count; i++) free(m->entries[i].needers.edges);
+    free(m->entries);
+    free(m);
+}
+
+static void collect_cascade(Graph *g, SonameMap *sm, const char *root,
                              char out[][MAX_PKGNAME], int *out_count, int max_out)
 {
     char queue[MAX_ENTRIES][MAX_PKGNAME];
     int  qhead = 0, qtail = 0;
-    char visited[MAX_ENTRIES][MAX_PKGNAME];
-    int  nvisited = 0;
+    VSet visited;
+    vset_init(&visited);
 
     strncpy(queue[qtail], root, MAX_PKGNAME - 1);
     queue[qtail++][MAX_PKGNAME - 1] = '\0';
 
     while (qhead < qtail) {
         char cur[MAX_PKGNAME];
-        strncpy(cur, queue[qhead], MAX_PKGNAME - 1);
+        strncpy(cur, queue[qhead++], MAX_PKGNAME - 1);
         cur[MAX_PKGNAME - 1] = '\0';
-        qhead++;
 
-        int dup = 0;
-        for (int i = 0; i < nvisited; i++)
-            if (strcmp(visited[i], cur) == 0) { dup = 1; break; }
-        if (dup) continue;
-
-        strncpy(visited[nvisited], cur, MAX_PKGNAME - 1);
-        visited[nvisited++][MAX_PKGNAME - 1] = '\0';
+        if (vset_contains(&visited, cur)) continue;
+        vset_insert(&visited, cur);
 
         if (strcmp(cur, root) != 0 && *out_count < max_out) {
             strncpy(out[*out_count], cur, MAX_PKGNAME - 1);
@@ -39,60 +139,58 @@ static void collect_cascade(Graph *g, const char *root,
         for (int i = 0; i < g->count; i++) {
             GraphEntry *e = &g->entries[i];
             if (e->type != ENTRY_PROVIDES || strcmp(e->pkg, cur) != 0) continue;
-
-            for (int j = 0; j < g->count; j++) {
-                GraphEntry *f = &g->entries[j];
-                if (f->type != ENTRY_NEEDS || strcmp(f->soname, e->soname) != 0
-                    || strcmp(f->pkg, cur) == 0) continue;
-
-                int seen = 0;
-                for (int k = 0; k < nvisited; k++)
-                    if (strcmp(visited[k], f->pkg) == 0) { seen = 1; break; }
-                if (!seen && qtail < MAX_ENTRIES) {
-                    strncpy(queue[qtail], f->pkg, MAX_PKGNAME - 1);
-                    queue[qtail++][MAX_PKGNAME - 1] = '\0';
+            for (int s = 0; s < sm->count; s++) {
+                if (strcmp(sm->entries[s].soname, e->soname) != 0) continue;
+                AdjList *nl = &sm->entries[s].needers;
+                for (int k = 0; k < nl->count; k++) {
+                    if (strcmp(nl->edges[k].pkg, cur) == 0) continue;
+                    if (!vset_contains(&visited, nl->edges[k].pkg) && qtail < MAX_ENTRIES) {
+                        strncpy(queue[qtail], nl->edges[k].pkg, MAX_PKGNAME - 1);
+                        queue[qtail++][MAX_PKGNAME - 1] = '\0';
+                    }
                 }
+                break;
             }
         }
     }
 }
 
-static void topo_sort(Graph *g,
+static void topo_sort(Graph *g, SonameMap *sm,
                       char nodes[][MAX_PKGNAME], int ncount,
                       char sorted[][MAX_PKGNAME], int *scount)
 {
-    int   in_degree[MAX_ENTRIES]  = {0};
-    int   edge_count[MAX_ENTRIES] = {0};
-    int   edge_cap[MAX_ENTRIES]   = {0};
-    int  *edges[MAX_ENTRIES];
-    memset(edges, 0, ncount * sizeof(int *));
+    int  *in_degree  = calloc(ncount, sizeof(int));
+    int **edges      = calloc(ncount, sizeof(int *));
+    int  *edge_count = calloc(ncount, sizeof(int));
+    int  *edge_cap   = calloc(ncount, sizeof(int));
 
     for (int i = 0; i < ncount; i++) {
         for (int ei = 0; ei < g->count; ei++) {
             GraphEntry *e = &g->entries[ei];
             if (e->type != ENTRY_PROVIDES || strcmp(e->pkg, nodes[i]) != 0) continue;
-
-            for (int j = 0; j < ncount; j++) {
-                if (i == j) continue;
-                for (int ej = 0; ej < g->count; ej++) {
-                    GraphEntry *f = &g->entries[ej];
-                    if (f->type != ENTRY_NEEDS   ||
-                        strcmp(f->pkg,    nodes[j])  != 0 ||
-                        strcmp(f->soname, e->soname) != 0) continue;
-
-                    if (edge_count[i] >= edge_cap[i]) {
-                        edge_cap[i] = edge_cap[i] ? edge_cap[i] * 2 : 4;
-                        edges[i]    = realloc(edges[i], edge_cap[i] * sizeof(int));
+            for (int s = 0; s < sm->count; s++) {
+                if (strcmp(sm->entries[s].soname, e->soname) != 0) continue;
+                AdjList *nl = &sm->entries[s].needers;
+                for (int k = 0; k < nl->count; k++) {
+                    for (int j = 0; j < ncount; j++) {
+                        if (i == j) continue;
+                        if (strcmp(nl->edges[k].pkg, nodes[j]) != 0) continue;
+                        if (edge_count[i] >= edge_cap[i]) {
+                            edge_cap[i] = edge_cap[i] ? edge_cap[i] * 2 : 4;
+                            edges[i]    = realloc(edges[i], edge_cap[i] * sizeof(int));
+                        }
+                        edges[i][edge_count[i]++] = j;
+                        in_degree[j]++;
+                        break;
                     }
-                    edges[i][edge_count[i]++] = j;
-                    in_degree[j]++;
-                    break;
                 }
+                break;
             }
         }
     }
 
-    int queue[MAX_ENTRIES], qh = 0, qt = 0;
+    int *queue = malloc(ncount * sizeof(int));
+    int  qh = 0, qt = 0;
     for (int i = 0; i < ncount; i++)
         if (in_degree[i] == 0) queue[qt++] = i;
 
@@ -106,16 +204,23 @@ static void topo_sort(Graph *g,
             if (--in_degree[m] == 0) queue[qt++] = m;
         }
     }
+
+    VSet seen;
+    vset_init(&seen);
+    for (int i = 0; i < *scount; i++) vset_insert(&seen, sorted[i]);
     for (int i = 0; i < ncount; i++) {
-        int found = 0;
-        for (int j = 0; j < *scount; j++)
-            if (strcmp(sorted[j], nodes[i]) == 0) { found = 1; break; }
-        if (!found) {
+        if (!vset_contains(&seen, nodes[i])) {
             strncpy(sorted[*scount], nodes[i], MAX_PKGNAME - 1);
             sorted[(*scount)++][MAX_PKGNAME - 1] = '\0';
         }
     }
+
     for (int i = 0; i < ncount; i++) free(edges[i]);
+    free(edges);
+    free(edge_count);
+    free(edge_cap);
+    free(in_degree);
+    free(queue);
 }
 
 static void cmd_rebuild(void) {
@@ -128,8 +233,8 @@ static void cmd_rebuild(void) {
     while ((ent = readdir(d)) != NULL) {
         if (ent->d_name[0] == '.') continue;
         if (pcount >= pcap) {
-            pcap   *= 2;
-            pnames  = realloc(pnames, pcap * sizeof(char *));
+            pcap  *= 2;
+            pnames = realloc(pnames, pcap * sizeof(char *));
         }
         pnames[pcount++] = strdup(ent->d_name);
     }
@@ -238,15 +343,15 @@ static void cmd_rdeps(const char *pkgname) {
 
     char rdeps[MAX_ENTRIES][MAX_PKGNAME];
     int  nrdeps = 0;
+    VSet seen;
+    vset_init(&seen);
     for (int i = 0; i < g->count; i++) {
         GraphEntry *e = &g->entries[i];
         if (e->type != ENTRY_NEEDS || strcmp(e->pkg, pkgname) == 0) continue;
         for (int j = 0; j < nprovided; j++) {
             if (strcmp(e->soname, provided[j]) != 0) continue;
-            int dup = 0;
-            for (int k = 0; k < nrdeps; k++)
-                if (strcmp(rdeps[k], e->pkg) == 0) { dup = 1; break; }
-            if (!dup && nrdeps < MAX_ENTRIES) {
+            if (!vset_contains(&seen, e->pkg) && nrdeps < MAX_ENTRIES) {
+                vset_insert(&seen, e->pkg);
                 strncpy(rdeps[nrdeps], e->pkg, MAX_PKGNAME - 1);
                 rdeps[nrdeps++][MAX_PKGNAME - 1] = '\0';
             }
@@ -263,22 +368,26 @@ static void cmd_cascade(const char *pkgname) {
     Graph *g = graph_load(GRAPH_CACHE);
     if (!g) { fprintf(stderr, "bogartgraph: no cache\n"); exit(1); }
 
+    SonameMap *sm = somap_build(g);
+
     static char cascade[MAX_ENTRIES][MAX_PKGNAME];
     int ncascade = 0;
-    collect_cascade(g, pkgname, cascade, &ncascade, MAX_ENTRIES);
+    collect_cascade(g, sm, pkgname, cascade, &ncascade, MAX_ENTRIES);
 
     if (ncascade == 0) {
         printf("No dependents for %s\n", pkgname);
-        graph_free(g); return;
+        somap_free(sm); graph_free(g); return;
     }
 
     static char sorted[MAX_ENTRIES][MAX_PKGNAME];
     int nsorted = 0;
-    topo_sort(g, cascade, ncascade, sorted, &nsorted);
+    topo_sort(g, sm, cascade, ncascade, sorted, &nsorted);
 
     printf("Cascade order for %s (%d):\n", pkgname, nsorted);
     for (int i = 0; i < nsorted; i++)
         printf("  %3d. %s\n", i + 1, sorted[i]);
+
+    somap_free(sm);
     graph_free(g);
 }
 
@@ -286,9 +395,11 @@ static void cmd_dot(const char *pkgname) {
     Graph *g = graph_load(GRAPH_CACHE);
     if (!g) { fprintf(stderr, "bogartgraph: no cache\n"); exit(1); }
 
+    SonameMap *sm = somap_build(g);
+
     static char cascade[MAX_ENTRIES][MAX_PKGNAME];
     int ncascade = 0;
-    collect_cascade(g, pkgname, cascade, &ncascade, MAX_ENTRIES);
+    collect_cascade(g, sm, pkgname, cascade, &ncascade, MAX_ENTRIES);
 
     printf("digraph \"%s\" {\n", pkgname);
     printf("  rankdir=LR;\n");
@@ -301,13 +412,15 @@ static void cmd_dot(const char *pkgname) {
             if (e->type != ENTRY_PROVIDES || strcmp(e->pkg, cascade[i]) != 0) continue;
             for (int j = 0; j < ncascade; j++) {
                 if (i == j) continue;
-                for (int ej = 0; ej < g->count; ej++) {
-                    GraphEntry *f = &g->entries[ej];
-                    if (f->type != ENTRY_NEEDS   ||
-                        strcmp(f->pkg,    cascade[j]) != 0 ||
-                        strcmp(f->soname, e->soname)  != 0) continue;
-                    printf("  \"%s\" -> \"%s\" [label=\"%s\"];\n",
-                           cascade[i], cascade[j], e->soname);
+                for (int s = 0; s < sm->count; s++) {
+                    if (strcmp(sm->entries[s].soname, e->soname) != 0) continue;
+                    AdjList *nl = &sm->entries[s].needers;
+                    for (int k = 0; k < nl->count; k++) {
+                        if (strcmp(nl->edges[k].pkg, cascade[j]) != 0) continue;
+                        printf("  \"%s\" -> \"%s\" [label=\"%s\"];\n",
+                               cascade[i], cascade[j], e->soname);
+                        break;
+                    }
                     break;
                 }
             }
@@ -315,18 +428,21 @@ static void cmd_dot(const char *pkgname) {
         for (int ei = 0; ei < g->count; ei++) {
             GraphEntry *e = &g->entries[ei];
             if (e->type != ENTRY_PROVIDES || strcmp(e->pkg, pkgname) != 0) continue;
-            for (int ej = 0; ej < g->count; ej++) {
-                GraphEntry *f = &g->entries[ej];
-                if (f->type != ENTRY_NEEDS   ||
-                    strcmp(f->pkg,    cascade[i]) != 0 ||
-                    strcmp(f->soname, e->soname)  != 0) continue;
-                printf("  \"%s\" -> \"%s\" [label=\"%s\"];\n",
-                       pkgname, cascade[i], e->soname);
+            for (int s = 0; s < sm->count; s++) {
+                if (strcmp(sm->entries[s].soname, e->soname) != 0) continue;
+                AdjList *nl = &sm->entries[s].needers;
+                for (int k = 0; k < nl->count; k++) {
+                    if (strcmp(nl->edges[k].pkg, cascade[i]) != 0) continue;
+                    printf("  \"%s\" -> \"%s\" [label=\"%s\"];\n",
+                           pkgname, cascade[i], e->soname);
+                    break;
+                }
                 break;
             }
         }
     }
     printf("}\n");
+    somap_free(sm);
     graph_free(g);
 }
 
@@ -345,7 +461,7 @@ static void usage(void) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc == 1)                            { cmd_rebuild();         return 0; }
+    if (argc == 1)                            { cmd_rebuild();                                        return 0; }
     if (strcmp(argv[1], "--rescan")   == 0)   { if (argc < 3) { usage(); return 1; } cmd_rescan(argv[2]);   return 0; }
     if (strcmp(argv[1], "--needs")    == 0)   { if (argc < 3) { usage(); return 1; } cmd_needs(argv[2]);    return 0; }
     if (strcmp(argv[1], "--provides") == 0)   { if (argc < 3) { usage(); return 1; } cmd_provides(argv[2]); return 0; }
