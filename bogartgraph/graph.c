@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "graph.h"
 
 Graph *graph_new(void) {
@@ -76,6 +77,7 @@ int graph_write(const Graph *g, const char *path) {
         unlink(tmp_path);
         return -1;
     }
+    chmod(path, 0644);
     return 0;
 }
 
